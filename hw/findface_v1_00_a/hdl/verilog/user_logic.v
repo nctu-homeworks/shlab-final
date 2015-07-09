@@ -1,6 +1,7 @@
 `uselib lib=unisims_ver
 `uselib lib=proc_common_v3_00_a
 `include "get_mem.v"
+`include "face.v"
 
 module user_logic
 (
@@ -60,7 +61,12 @@ parameter  LOAD_FACE2 = 4'd2;
 parameter  LOAD_FACE3 = 4'd3;
 parameter  LOAD_FACE4 = 4'd4;
 parameter  LOAD_GROUP = 4'd5;
-parameter  MATCHING = 4'd6;
+parameter  MATCHING_COMPUTE = 4'd6;
+parameter  MATCHING_LOAD = 4'd7;
+
+parameter  FACE_SIZE = 1024;
+parameter  GROUP_WIDTH = 1920;
+parameter  GROUP_HEIGHT = 1080;
 // -- ADD USER PARAMETERS ABOVE THIS LINE ------------
 
 // -- DO NOT EDIT BELOW THIS LINE --------------------
@@ -207,6 +213,7 @@ input                                     bus2ip_mstwr_dst_dsc_n;
   wire                                       bus2ip_mstwr_dst_dsc_n;
 
 // signals for master model control/status registers write/read
+  reg      [C_SLV_DWIDTH-1 : 0]              mst_ip2bus_data;
   wire                                       mst_write_ack;
   wire                                       mst_read_ack;
 
@@ -218,15 +225,22 @@ input                                     bus2ip_mstwr_dst_dsc_n;
   reg      [31 : 0]                          face3[255 : 0];
   reg      [31 : 0]                          face4[255 : 0];
   reg      [31 : 0]                          group[255 : 0];
+  wire     [32*32*8-1 : 0]                   g_pixel, f1, f2, f3, f4;
   wire     [11 : 0]                          mem_count;
   wire     [31 : 0]                          mem_data;
+  reg      [31 : 0]                          mem_addr;
+  reg      [11 : 0]                          mem_length;
+  reg                                        mem_trig;
   wire                                       mem_data_trig, mem_complete;
-  wire     [31 : 0]                          min_x1, min_x2, min_x3, min_x4;
-  wire     [31 : 0]                          min_y1, min_y2, min_y3, min_y4;
-  wire     [31 : 0]                          min_sad1, min_sad2, min_sad3, min_sad4;
+  reg      [31 : 0]                          min_x1, min_x2, min_x3, min_x4;
+  reg      [31 : 0]                          min_y1, min_y2, min_y3, min_y4;
+  reg      [31 : 0]                          min_sad1, min_sad2, min_sad3, min_sad4;
+  wire     [31 : 0]                          sad1, sad2, sad3, sad4;
   wire                                       clear;
   
   reg      [3  : 0]                          state, next_state;
+  reg      [12 : 0]                          group_row, group_col, group_row_count;
+  reg      [3  : 0]                          count_tick;
   
   get_mem getmem(mem_addr, mem_length, mem_trig, mem_complete, mem_data, mem_data_trig, mem_count,
     Bus2IP_Clk,                     // Bus to IP clock
@@ -254,28 +268,117 @@ input                                     bus2ip_mstwr_dst_dsc_n;
     ip2bus_mstwr_eof_n,             // Ip to Bus master write end of frame
     bus2ip_mstwr_dst_rdy_n         // Bus to Ip master write dest. ready
   );
-  face f1(
-    Bus2IP_Clk, Bus2IP_Resetn,
-    clear, face1, group,
-    min_x1, min_y1, min_sad1
+  face ff1(
+    Bus2IP_Clk,
+    f1, g_pixel,
+    sad1
   );
-  face f2(
-    Bus2IP_Clk, Bus2IP_Resetn,
-    clear, face2, group,
-    min_x2, min_y2, min_sad2
+  face ff2(
+    Bus2IP_Clk,
+    f2, g_pixel,
+    sad2
   );
-  face f3(
-    Bus2IP_Clk, Bus2IP_Resetn,
-    clear, face3, group,
-    min_x3, min_y3, min_sad3
+  face ff3(
+    Bus2IP_Clk,
+    f3, g_pixel,
+    sad3
   );
-  face f4(
-    Bus2IP_Clk, Bus2IP_Resetn,
-    clear, face4, group,
-    min_x4, min_y4, min_sad4
+  face ff4(
+    Bus2IP_Clk,
+    f4, g_pixel,
+    sad4
   );
   
-  assign clear = (state != MATCHING) ? 1'b1 : 0;
+  // Remember min_sad
+  always @(posedge Bus2IP_Clk)
+    begin
+      if (!Bus2IP_Resetn || clear)
+        begin
+          min_sad1 <= 999999;
+          min_x1 <= 0;
+          min_y1 <= 0;
+        end
+      else if (count_tick == 8 && sad1 < min_sad1)
+        begin
+          min_sad1 <= sad1;
+          min_x1 <= group_col;
+          min_y1 <= group_row;
+        end
+      else
+        begin
+          min_sad1 <= min_sad1;
+          min_x1 <= min_x1;
+          min_y1 <= min_y1;
+        end
+    end
+    
+  always @(posedge Bus2IP_Clk)
+    begin
+      if (!Bus2IP_Resetn || clear)
+        begin
+          min_sad2 <= 999999;
+          min_x2 <= 0;
+          min_y2 <= 0;
+        end
+      else if (count_tick == 8 && sad2 < min_sad2)
+        begin
+          min_sad2 <= sad2;
+          min_x2 <= group_col;
+          min_y2 <= group_row;
+        end
+      else
+        begin
+          min_sad2 <= min_sad2;
+          min_x2 <= min_x2;
+          min_y2 <= min_y2;
+        end
+    end
+    
+  always @(posedge Bus2IP_Clk)
+    begin
+      if (!Bus2IP_Resetn || clear)
+        begin
+          min_sad3 <= 999999;
+          min_x3 <= 0;
+          min_y3 <= 0;
+        end
+      else if (count_tick == 8 && sad3 < min_sad3)
+        begin
+          min_sad3 <= sad3;
+          min_x3 <= group_col;
+          min_y3 <= group_row;
+        end
+      else
+        begin
+          min_sad3 <= min_sad3;
+          min_x3 <= min_x3;
+          min_y3 <= min_y3;
+        end
+    end
+    
+  always @(posedge Bus2IP_Clk)
+    begin
+      if (!Bus2IP_Resetn || clear)
+        begin
+          min_sad4 <= 999999;
+          min_x4 <= 0;
+          min_y4 <= 0;
+        end
+      else if (count_tick == 8 && sad4 < min_sad4)
+        begin
+          min_sad4 <= sad4;
+          min_x4 <= group_col;
+          min_y4 <= group_row;
+        end
+      else
+        begin
+          min_sad4 <= min_sad4;
+          min_x4 <= min_x4;
+          min_y4 <= min_y4;
+        end
+    end
+  
+  assign clear = (state != IDLE && state != MATCHING_COMPUTE && state != MATCHING_LOAD) ? 1'b1 : 0;
   
   // FSM
   always @(posedge Bus2IP_Clk)
@@ -326,15 +429,140 @@ input                                     bus2ip_mstwr_dst_dsc_n;
           end
         LOAD_GROUP:
           begin
-            if (mem_complete)
-              next_state = LOAD_FACE2;
+            if (mem_complete && group_row_count >= 31)
+              next_state = MATCHING_COMPUTE;
             else
               next_state = LOAD_GROUP;
           end
-        MATCHING:
+        MATCHING_COMPUTE:
+          begin
+            if (count_tick < 8)
+              next_state = MATCHING_COMPUTE;
+            else if (group_row_count != GROUP_HEIGHT)
+              next_state = MATCHING_LOAD;
+            else if (group_col < GROUP_WIDTH - 32)
+              next_state = LOAD_GROUP;
+            else
+              next_state = IDLE;
+          end
+        MATCHING_LOAD:
+          begin
+            if (mem_complete)
+              next_state = MATCHING_COMPUTE;
+            else
+              next_state = MATCHING_LOAD;
+          end
         default:
+          begin
+            next_state = IDLE;
+          end
       endcase
     end
+    
+  // count_tick control
+  always @(posedge Bus2IP_Clk)
+    begin
+      if (!Bus2IP_Resetn || next_state != MATCHING_COMPUTE)
+        count_tick <= 0;
+      else
+        count_tick <= count_tick + 1;
+    end
+  
+  // Group row, col control
+  always @(posedge Bus2IP_Clk)
+    begin
+      if (!Bus2IP_Resetn || 
+          state != LOAD_GROUP && state != MATCHING_COMPUTE && state != MATCHING_LOAD || 
+          state == MATCHING_COMPUTE && next_state == LOAD_GROUP)
+        group_row_count <= 0;
+      else if (mem_complete)
+        group_row_count <= group_row_count + 1;
+      else
+        group_row_count <= group_row_count;
+    end
+  
+  always @(posedge Bus2IP_Clk)
+    begin
+      if (!Bus2IP_Resetn || next_state != MATCHING_COMPUTE && next_state != MATCHING_LOAD)
+        group_row <= 0;
+      else if (state == MATCHING_COMPUTE && next_state == MATCHING_LOAD)
+        group_row <= group_row + 1;
+      else
+        group_row <= group_row;
+    end
+  
+  always @(posedge Bus2IP_Clk)
+    begin
+      if (!Bus2IP_Resetn || next_state != MATCHING_COMPUTE && next_state != MATCHING_LOAD && next_state != LOAD_GROUP)
+        group_col <= 0;
+      else if (state == MATCHING_COMPUTE && next_state == LOAD_GROUP)
+        group_col <= group_col + 1;
+      else
+        group_col <= group_col;
+    end
+  
+  // Memory setup
+  always @(posedge Bus2IP_Clk)
+    begin
+      if (!Bus2IP_Resetn)
+        mem_addr <= 0;
+      else if ((state == LOAD_FACE4 || state == MATCHING_COMPUTE) && next_state == LOAD_GROUP)
+        mem_addr <= slv_reg5 + group_col;
+      else if (mem_complete && next_state == LOAD_GROUP || state == MATCHING_COMPUTE && next_state == MATCHING_LOAD)
+        mem_addr <= mem_addr + GROUP_WIDTH;
+      else
+        case (next_state)
+          LOAD_FACE1:
+            begin
+              mem_addr <= slv_reg1;
+            end
+          LOAD_FACE2:
+            begin
+              mem_addr <= slv_reg2;
+            end
+          LOAD_FACE3:
+            begin
+              mem_addr <= slv_reg3;
+            end
+          LOAD_FACE4:
+            begin
+              mem_addr <= slv_reg4;
+            end
+          default:
+            begin
+              mem_addr <= mem_addr;
+            end
+        endcase
+    end
+  
+  always @(posedge Bus2IP_Clk)
+    begin
+      if (!Bus2IP_Resetn)
+        mem_length <= 0;
+      else if (next_state == LOAD_FACE1 || next_state == LOAD_FACE2 || next_state == LOAD_FACE3 || next_state == LOAD_FACE4)
+        mem_length <= FACE_SIZE;
+      else if (next_state == MATCHING_LOAD || next_state == LOAD_GROUP)
+        mem_length <= GROUP_WIDTH;
+      else
+        mem_length <= 0;
+    end
+    
+  always @(posedge Bus2IP_Clk)
+    begin
+      if (!Bus2IP_Resetn || !mem_complete)
+        mem_trig <= 0;
+      else if (state == IDLE && next_state == LOAD_FACE1 ||
+               state == LOAD_FACE1 && next_state == LOAD_FACE2 ||
+               state == LOAD_FACE2 && next_state == LOAD_FACE3 ||
+               state == LOAD_FACE3 && next_state == LOAD_FACE4 ||
+               state == LOAD_FACE4 && next_state == LOAD_GROUP ||
+               state == MATCHING_COMPUTE && next_state == MATCHING_LOAD ||
+               state == MATCHING_COMPUTE && next_state == LOAD_GROUP)
+        mem_trig <= 1;
+      else
+        mem_trig <= mem_trig;
+    end
+        
   
   // Faces and group
   integer pixel_index;
@@ -407,7 +635,7 @@ input                                     bus2ip_mstwr_dst_dsc_n;
       if (!Bus2IP_Resetn)
         for (pixel_index = 0; pixel_index < 256; pixel_index = pixel_index + 1)
           group[pixel_index] <= 0;
-      else if (state == LOAD_GROUP && mem_data_trig)
+      else if ((state == LOAD_GROUP || state == MATCHING_LOAD) && mem_data_trig)
         begin
           for (pixel_index = 0; pixel_index < 255; pixel_index = pixel_index + 1)
             group[pixel_index] <= group[pixel_index+1];
@@ -418,14 +646,20 @@ input                                     bus2ip_mstwr_dst_dsc_n;
           group[pixel_index] <= group[pixel_index];
     end
   
+  genvar p_index;
+  generate
+    for ( p_index = 0; p_index <= 255; p_index = p_index+1 )
+      begin: g0
+        assign g_pixel[p_index*32+31 : p_index*32] = group[p_index];
+        assign f1[p_index*32+31 : p_index*32] = face1[p_index];
+        assign f2[p_index*32+31 : p_index*32] = face2[p_index];
+        assign f3[p_index*32+31 : p_index*32] = face3[p_index];
+        assign f4[p_index*32+31 : p_index*32] = face4[p_index];
+      end
+  endgenerate
   
   
-  
-  
-  
-  
-  
-  
+
 
   // ------------------------------------------------------
   // Example code to read/write user logic slave model s/w accessible registers
@@ -653,7 +887,22 @@ input                                     bus2ip_mstwr_dst_dsc_n;
               if ( Bus2IP_BE[byte_index] == 1 )
                 for ( bit_index = byte_index*8; bit_index <= byte_index*8+7; bit_index = bit_index+1 )
                   slv_reg31[bit_index] <= Bus2IP_Data[bit_index];
-          default : ;
+          default : 
+            begin
+              slv_reg0 <= (next_state == IDLE ? 0 : 1);
+              slv_reg6 <= min_sad1;
+              slv_reg7 <= min_x1;
+              slv_reg8 <= min_y1;
+              slv_reg9 <= min_sad2;
+              slv_reg10 <= min_x2;
+              slv_reg11 <= min_y2;
+              slv_reg12 <= min_sad3;
+              slv_reg13 <= min_x3;
+              slv_reg14 <= min_y3;
+              slv_reg15 <= min_sad4;
+              slv_reg16 <= min_x4;
+              slv_reg17 <= min_y4;
+            end
         endcase
 
     end // SLAVE_REG_WRITE_PROC
