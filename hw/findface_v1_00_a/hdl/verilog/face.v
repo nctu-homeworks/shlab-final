@@ -30,15 +30,15 @@ module face (
   generate
     for ( pixel_index = 0; pixel_index <= 255; pixel_index = pixel_index+1 )
 	    begin: g0
-        assign f_pixel[{pixel_index, 2'b00}] = {1'b0, face_data[{pixel_index, 2'b0000} +: 8]};
-        assign f_pixel[{pixel_index, 2'b01}] = {1'b0, face_data[{pixel_index, 2'b0100} +: 8]};
-        assign f_pixel[{pixel_index, 2'b10}] = {1'b0, face_data[{pixel_index, 2'b1000} +: 8]};
-        assign f_pixel[{pixel_index, 2'b11}] = {1'b0, face_data[{pixel_index, 2'b1100} +: 8]};
+        assign f_pixel[{pixel_index, 2'b00}] = {1'b0, face_data[pixel_index*32+7 : pixel_index*32]};
+        assign f_pixel[{pixel_index, 2'b01}] = {1'b0, face_data[pixel_index*32+8+7 : pixel_index*32+8]};
+        assign f_pixel[{pixel_index, 2'b10}] = {1'b0, face_data[pixel_index*32+16+7 : pixel_index*32+16]};
+        assign f_pixel[{pixel_index, 2'b11}] = {1'b0, face_data[pixel_index*32+24+7 : pixel_index*32+24]};
         
-        assign g_pixel[{pixel_index, 2'b00}] = {1'b0, group_data[{pixel_index, 2'b0000} +: 8]};
-        assign g_pixel[{pixel_index, 2'b01}] = {1'b0, group_data[{pixel_index, 2'b0100} +: 8]};
-        assign g_pixel[{pixel_index, 2'b10}] = {1'b0, group_data[{pixel_index, 2'b1000} +: 8]};
-        assign g_pixel[{pixel_index, 2'b11}] = {1'b0, group_data[{pixel_index, 2'b1100} +: 8]};
+        assign g_pixel[{pixel_index, 2'b00}] = {1'b0, group_data[pixel_index*32+7 : pixel_index*32]};
+        assign g_pixel[{pixel_index, 2'b01}] = {1'b0, group_data[pixel_index*32+8+7 : pixel_index*32+8]};
+        assign g_pixel[{pixel_index, 2'b10}] = {1'b0, group_data[pixel_index*32+16+7 : pixel_index*32+16]};
+        assign g_pixel[{pixel_index, 2'b11}] = {1'b0, group_data[pixel_index*32+24+7 : pixel_index*32+24]};
         
         assign diff[{pixel_index, 2'b00}] = f_pixel[{pixel_index, 2'b00}] - g_pixel[{pixel_index, 2'b00}];
         assign diff[{pixel_index, 2'b01}] = f_pixel[{pixel_index, 2'b01}] - g_pixel[{pixel_index, 2'b01}];

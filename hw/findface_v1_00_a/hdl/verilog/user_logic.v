@@ -223,21 +223,23 @@ input                                     bus2ip_mstwr_dst_dsc_n;
 // user logic master command interface assignments
 
   reg      [31 : 0]                          face1[255 : 0];
+	/*
   reg      [31 : 0]                          face2[255 : 0];
   reg      [31 : 0]                          face3[255 : 0];
   reg      [31 : 0]                          face4[255 : 0];
+	*/
   reg      [31 : 0]                          group[255 : 0];
-  wire     [32*32*8-1 : 0]                   g_pixel, f1, f2, f3, f4;
+  wire     [32*32*8-1 : 0]                   g_pixel, f_pixel;
   wire     [11 : 0]                          mem_count;
   wire     [31 : 0]                          mem_data;
   reg      [31 : 0]                          mem_addr;
   reg      [11 : 0]                          mem_length;
   reg                                        mem_trig;
   wire                                       mem_data_trig, mem_complete;
-  reg      [31 : 0]                          min_x1, min_x2, min_x3, min_x4;
-  reg      [31 : 0]                          min_y1, min_y2, min_y3, min_y4;
-  reg      [31 : 0]                          min_sad1, min_sad2, min_sad3, min_sad4;
-  wire     [31 : 0]                          sad1, sad2, sad3, sad4;
+  reg      [31 : 0]                          min_x1; //, min_x2, min_x3, min_x4;
+  reg      [31 : 0]                          min_y1; //, min_y2, min_y3, min_y4;
+  reg      [31 : 0]                          min_sad1; //, min_sad2, min_sad3, min_sad4;
+  wire     [31 : 0]                          sad;
   wire                                       clear;
   
   reg      [3  : 0]                          state, next_state;
@@ -270,25 +272,10 @@ input                                     bus2ip_mstwr_dst_dsc_n;
     ip2bus_mstwr_eof_n,             // Ip to Bus master write end of frame
     bus2ip_mstwr_dst_rdy_n         // Bus to Ip master write dest. ready
   );
-  face ff1(
+  face ff(
     Bus2IP_Clk,
-    f1, g_pixel,
-    sad1
-  );
-  face ff2(
-    Bus2IP_Clk,
-    f2, g_pixel,
-    sad2
-  );
-  face ff3(
-    Bus2IP_Clk,
-    f3, g_pixel,
-    sad3
-  );
-  face ff4(
-    Bus2IP_Clk,
-    f4, g_pixel,
-    sad4
+    f_pixel, g_pixel,
+    sad
   );
   
   // Remember min_sad
@@ -300,9 +287,9 @@ input                                     bus2ip_mstwr_dst_dsc_n;
           min_x1 <= 0;
           min_y1 <= 0;
         end
-      else if (count_tick == 8 && sad1 < min_sad1)
+      else if (count_tick == 8 && sad < min_sad1)
         begin
-          min_sad1 <= sad1;
+          min_sad1 <= sad;
           min_x1 <= group_col;
           min_y1 <= group_row;
         end
@@ -314,6 +301,7 @@ input                                     bus2ip_mstwr_dst_dsc_n;
         end
     end
     
+	/*
   always @(posedge Bus2IP_Clk)
     begin
       if (!Bus2IP_Resetn || clear)
@@ -379,8 +367,9 @@ input                                     bus2ip_mstwr_dst_dsc_n;
           min_y4 <= min_y4;
         end
     end
-  
-  assign clear = (state != IDLE && state != MATCHING_COMPUTE && state != MATCHING_LOAD) ? 1'b1 : 0;
+  */
+
+  assign clear = (state != IDLE && state != MATCHING_COMPUTE && state != MATCHING_LOAD && state != LOAD_GROUP) ? 1'b1 : 0;
   
   // FSM
   always @(posedge Bus2IP_Clk)
@@ -404,10 +393,11 @@ input                                     bus2ip_mstwr_dst_dsc_n;
         LOAD_FACE1:
           begin
             if (mem_complete)
-              next_state = LOAD_FACE2;
+              next_state = LOAD_GROUP; //LOAD_FACE2;
             else
               next_state = LOAD_FACE1;
           end
+				/*
         LOAD_FACE2:
           begin
             if (mem_complete)
@@ -429,6 +419,7 @@ input                                     bus2ip_mstwr_dst_dsc_n;
             else
               next_state = LOAD_FACE4;
           end
+				*/
         LOAD_GROUP:
           begin
             if (mem_complete && group_row_count >= 31)
@@ -518,6 +509,7 @@ input                                     bus2ip_mstwr_dst_dsc_n;
             begin
               mem_addr <= slv_reg1;
             end
+					/*
           LOAD_FACE2:
             begin
               mem_addr <= slv_reg2;
@@ -530,6 +522,7 @@ input                                     bus2ip_mstwr_dst_dsc_n;
             begin
               mem_addr <= slv_reg4;
             end
+					*/
           default:
             begin
               mem_addr <= mem_addr;
@@ -541,17 +534,17 @@ input                                     bus2ip_mstwr_dst_dsc_n;
     begin
       if (!Bus2IP_Resetn)
         mem_length <= 0;
-      else if (next_state == LOAD_FACE1 || next_state == LOAD_FACE2 || next_state == LOAD_FACE3 || next_state == LOAD_FACE4)
+      else if (next_state == LOAD_FACE1 /*|| next_state == LOAD_FACE2 || next_state == LOAD_FACE3 || next_state == LOAD_FACE4*/)
         mem_length <= FACE_SIZE;
       else if (next_state == MATCHING_LOAD || next_state == LOAD_GROUP)
-        mem_length <= GROUP_WIDTH;
+        mem_length <= 32;
       else
         mem_length <= 0;
     end
     
   always @(posedge Bus2IP_Clk)
     begin
-      if (!Bus2IP_Resetn || !mem_complete)
+      if (!Bus2IP_Resetn)
         mem_trig <= 0;
       else if (state != next_state && next_state != IDLE && next_state != MATCHING_COMPUTE)
         mem_trig <= 1;
@@ -575,6 +568,7 @@ input                                     bus2ip_mstwr_dst_dsc_n;
           face1[pixel_index] <= face1[pixel_index];
     end
     
+	/*
   always @(posedge Bus2IP_Clk)
     begin
       if (state == LOAD_FACE2 && mem_data_trig)
@@ -613,6 +607,7 @@ input                                     bus2ip_mstwr_dst_dsc_n;
         for (pixel_index = 0; pixel_index < 256; pixel_index = pixel_index + 1)
           face4[pixel_index] <= face4[pixel_index];
     end
+	*/
     
   always @(posedge Bus2IP_Clk)
     begin
@@ -632,10 +627,7 @@ input                                     bus2ip_mstwr_dst_dsc_n;
     for ( p_index = 0; p_index <= 255; p_index = p_index+1 )
       begin: g0
         assign g_pixel[p_index*32+31 : p_index*32] = group[p_index];
-        assign f1[p_index*32+31 : p_index*32] = face1[p_index];
-        assign f2[p_index*32+31 : p_index*32] = face2[p_index];
-        assign f3[p_index*32+31 : p_index*32] = face3[p_index];
-        assign f4[p_index*32+31 : p_index*32] = face4[p_index];
+        assign f_pixel[p_index*32+31 : p_index*32] = face1[p_index];
       end
   endgenerate
   
@@ -874,10 +866,11 @@ input                                     bus2ip_mstwr_dst_dsc_n;
 		  */
           default : 
             begin
-              slv_reg0 <= (next_state == IDLE ? 0 : 1);
+              slv_reg0 <= (next_state == IDLE ? 0 : slv_reg0);
               slv_reg6 <= min_sad1;
               slv_reg7 <= min_x1;
               slv_reg8 <= min_y1;
+			  /*
               slv_reg9 <= min_sad2;
               slv_reg10 <= min_x2;
               slv_reg11 <= min_y2;
@@ -887,6 +880,7 @@ input                                     bus2ip_mstwr_dst_dsc_n;
               slv_reg15 <= min_sad4;
               slv_reg16 <= min_x4;
               slv_reg17 <= min_y4;
+			  */
             end
         endcase
 

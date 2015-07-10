@@ -103,7 +103,6 @@ input                                     bus2ip_mstwr_dst_rdy_n;
 
   // --USER nets declarations added here, as needed for user logic
   reg        [2 : 0]                        state, next_state;
-  reg        [C_MST_NATIVE_DATA_WIDTH-1:0]  buffer [BURST_BYTE/4-1 : 0];
   reg        [C_LENGTH_WIDTH-1:0]           remaining_len;
   reg        [C_MST_AWIDTH-1 : 0]           addr_offset;
   
@@ -132,26 +131,6 @@ input                                     bus2ip_mstwr_dst_rdy_n;
   wire                                       ip2bus_mstwr_eof_n;
   wire                                       bus2ip_mstwr_dst_rdy_n;
 
-// signals for master model control/status registers write/read
-  reg        [C_SLV_DWIDTH-1 : 0]            mst_ip2bus_data;
-  wire                                       mst_reg_write_req;
-  wire                                       mst_reg_read_req;
-  wire       [3 : 0]                         mst_reg_write_sel;
-  wire       [3 : 0]                         mst_reg_read_sel;
-  wire                                       mst_write_ack;
-  wire                                       mst_read_ack;
-// signals for master model control/status registers
-  reg        [7 : 0]                         mst_reg [0 : 15];
-  reg        [15 : 0]                        mst_byte_we;
-  wire                                       mst_cntl_rd_req;
-  wire                                       mst_cntl_wr_req;
-  wire                                       mst_cntl_bus_lock;
-  wire                                       mst_cntl_burst;
-  wire       [C_MST_AWIDTH-1 : 0]            mst_ip2bus_addr;
-  wire       [C_LENGTH_WIDTH-1 : 0]          mst_xfer_length;
-  wire       [19 : 0]                        mst_xfer_reg_len;
-  wire       [15 : 0]                        mst_ip2bus_be;
-  reg                                        mst_go;
 // signals for master model command interface state machine
   reg                                        mst_cmd_sm_rd_req;
   reg        [C_LENGTH_WIDTH-1 : 0]          mst_cmd_length;
