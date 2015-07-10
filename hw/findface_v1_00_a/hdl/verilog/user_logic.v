@@ -497,49 +497,38 @@ input                                     bus2ip_mstwr_dst_dsc_n;
   // Memory setup
   always @(posedge Bus2IP_Clk)
     begin
-      if (!Bus2IP_Resetn)
-        mem_addr <= 0;
-      else if (state != LOAD_GROUP && next_state == LOAD_GROUP)
-        mem_addr <= slv_reg5 + group_col;
-      else if (mem_complete && next_state == LOAD_GROUP || state == MATCHING_COMPUTE && next_state == MATCHING_LOAD)
-        mem_addr <= mem_addr + GROUP_WIDTH;
-      else
-        case (next_state)
-          LOAD_FACE1:
-            begin
-              mem_addr <= slv_reg1;
-            end
-					/*
-          LOAD_FACE2:
-            begin
-              mem_addr <= slv_reg2;
-            end
-          LOAD_FACE3:
-            begin
-              mem_addr <= slv_reg3;
-            end
-          LOAD_FACE4:
-            begin
-              mem_addr <= slv_reg4;
-            end
-					*/
-          default:
-            begin
-              mem_addr <= mem_addr;
-            end
-        endcase
-    end
+      case (next_state)
+        LOAD_FACE1:
+          begin
+            mem_addr <= slv_reg1;
+          end
+	  			/*
+        LOAD_FACE2:
+          begin
+            mem_addr <= slv_reg2;
+          end
+        LOAD_FACE3:
+          begin
+            mem_addr <= slv_reg3;
+          end
+        LOAD_FACE4:
+          begin
+            mem_addr <= slv_reg4;
+          end
+	  			*/
+        default:
+          begin
+            mem_addr <= slv_reg5 + group_col + group_row_count * GROUP_WIDTH;
+          end
+      endcase
+		end
   
   always @(posedge Bus2IP_Clk)
     begin
-      if (!Bus2IP_Resetn)
-        mem_length <= 0;
-      else if (next_state == LOAD_FACE1 /*|| next_state == LOAD_FACE2 || next_state == LOAD_FACE3 || next_state == LOAD_FACE4*/)
-        mem_length <= FACE_SIZE;
-      else if (next_state == MATCHING_LOAD || next_state == LOAD_GROUP)
+      if (next_state == MATCHING_LOAD || next_state == LOAD_GROUP)
         mem_length <= 32;
       else
-        mem_length <= 0;
+        mem_length <= FACE_SIZE;
     end
     
   always @(posedge Bus2IP_Clk)
@@ -548,6 +537,8 @@ input                                     bus2ip_mstwr_dst_dsc_n;
         mem_trig <= 0;
       else if (state != next_state && next_state != IDLE && next_state != MATCHING_COMPUTE)
         mem_trig <= 1;
+			else if (mem_complete)
+				mem_trig <= 0;
       else
         mem_trig <= mem_trig;
     end
