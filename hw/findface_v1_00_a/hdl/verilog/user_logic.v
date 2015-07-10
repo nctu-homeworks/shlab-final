@@ -7,6 +7,8 @@ module user_logic
 (
   // -- ADD USER PORTS BELOW THIS LINE ---------------
   // --USER ports added here 
+	dbg_trig,
+	dbg_data,
   // -- ADD USER PORTS ABOVE THIS LINE ---------------
 
   // -- DO NOT EDIT BELOW THIS LINE ------------------
@@ -80,6 +82,8 @@ parameter C_SLV_DWIDTH                   = 32;
 
 // -- ADD USER PORTS BELOW THIS LINE -----------------
 // --USER ports added here 
+output     [7 : 0]                        dbg_trig;
+output     [31: 0]                        dbg_data;
 // -- ADD USER PORTS ABOVE THIS LINE -----------------
 
 // -- DO NOT EDIT BELOW THIS LINE --------------------
@@ -221,6 +225,8 @@ input                                     bus2ip_mstwr_dst_dsc_n;
 
 // --USER logic implementation added here
 // user logic master command interface assignments
+  wire     [7  : 0]                          dbg_trig;
+	wire     [31 : 0]                          dbg_data;
 
   reg      [31 : 0]                          face1[255 : 0];
 	/*
@@ -245,6 +251,9 @@ input                                     bus2ip_mstwr_dst_dsc_n;
   reg      [3  : 0]                          state, next_state;
   reg      [12 : 0]                          group_row, group_col, group_row_count;
   reg      [3  : 0]                          count_tick;
+
+	assign dbg_trig = {7'b0000000, slv_reg0[0]};
+	assign dbg_data = {group_col[11:0], group_row_count[11:0], mem_complete, mem_data_trig, mem_trig, state[2:0], slv_reg0[0], Bus2IP_Clk};
   
   get_mem getmem(mem_addr, mem_length, mem_trig, mem_complete, mem_data, mem_data_trig, mem_count,
     Bus2IP_Clk,                     // Bus to IP clock
@@ -495,30 +504,30 @@ input                                     bus2ip_mstwr_dst_dsc_n;
     end
   
   // Memory setup
-  always @(posedge Bus2IP_Clk)
+  always @(*)
     begin
-      case (next_state)
+      case (state)
         LOAD_FACE1:
           begin
-            mem_addr <= slv_reg1;
+            mem_addr = slv_reg1;
           end
 	  			/*
         LOAD_FACE2:
           begin
-            mem_addr <= slv_reg2;
+            mem_addr = slv_reg2;
           end
         LOAD_FACE3:
           begin
-            mem_addr <= slv_reg3;
+            mem_addr = slv_reg3;
           end
         LOAD_FACE4:
           begin
-            mem_addr <= slv_reg4;
+            mem_addr = slv_reg4;
           end
 	  			*/
         default:
           begin
-            mem_addr <= slv_reg5 + group_col + group_row_count * GROUP_WIDTH;
+            mem_addr = slv_reg5 + group_col + group_row_count * GROUP_WIDTH;
           end
       endcase
 		end
@@ -537,7 +546,7 @@ input                                     bus2ip_mstwr_dst_dsc_n;
         mem_trig <= 0;
       else if (state != next_state && next_state != IDLE && next_state != MATCHING_COMPUTE)
         mem_trig <= 1;
-			else if (mem_complete)
+			else if (!mem_complete)
 				mem_trig <= 0;
       else
         mem_trig <= mem_trig;

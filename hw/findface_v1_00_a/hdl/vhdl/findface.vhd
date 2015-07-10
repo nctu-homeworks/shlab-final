@@ -182,6 +182,8 @@ entity findface is
   (
     -- ADD USER PORTS BELOW THIS LINE ------------------
     --USER ports added here
+    DBG_TRIG                       : out std_logic_vector(7 downto 0);
+    DBG_DATA                       : out std_logic_vector(31 downto 0);
     -- ADD USER PORTS ABOVE THIS LINE ------------------
 
     -- DO NOT EDIT BELOW THIS LINE ---------------------
@@ -393,6 +395,8 @@ architecture IMP of findface is
     (
       -- ADD USER PORTS BELOW THIS LINE ------------------
       --USER ports added here
+      dbg_trig                       : out std_logic_vector(7 downto 0);
+      dbg_data                       : out std_logic_vector(31 downto 0);
       -- ADD USER PORTS ABOVE THIS LINE ------------------
 
       -- DO NOT EDIT BELOW THIS LINE ---------------------
@@ -592,6 +596,8 @@ begin
     (
       -- MAP USER PORTS BELOW THIS LINE ------------------
       --USER ports mapped here
+	  dbg_trig                       => DBG_TRIG,
+	  dbg_data                       => DBG_DATA,
       -- MAP USER PORTS ABOVE THIS LINE ------------------
 
       Bus2IP_Clk                     => ipif_Bus2IP_Clk,
