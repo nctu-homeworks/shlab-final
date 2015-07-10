@@ -150,6 +150,7 @@ input                                     bus2ip_mstwr_dst_dsc_n;
   reg        [C_SLV_DWIDTH-1 : 0]           slv_reg15;
   reg        [C_SLV_DWIDTH-1 : 0]           slv_reg16;
   reg        [C_SLV_DWIDTH-1 : 0]           slv_reg17;
+  /*
   reg        [C_SLV_DWIDTH-1 : 0]           slv_reg18;
   reg        [C_SLV_DWIDTH-1 : 0]           slv_reg19;
   reg        [C_SLV_DWIDTH-1 : 0]           slv_reg20;
@@ -164,6 +165,7 @@ input                                     bus2ip_mstwr_dst_dsc_n;
   reg        [C_SLV_DWIDTH-1 : 0]           slv_reg29;
   reg        [C_SLV_DWIDTH-1 : 0]           slv_reg30;
   reg        [C_SLV_DWIDTH-1 : 0]           slv_reg31;
+  */
   wire       [31 : 0]                       slv_reg_write_sel;
   wire       [31 : 0]                       slv_reg_read_sel;
   reg        [C_SLV_DWIDTH-1 : 0]           slv_ip2bus_data;
@@ -506,7 +508,7 @@ input                                     bus2ip_mstwr_dst_dsc_n;
     begin
       if (!Bus2IP_Resetn)
         mem_addr <= 0;
-      else if ((state == LOAD_FACE4 || state == MATCHING_COMPUTE) && next_state == LOAD_GROUP)
+      else if (state != LOAD_GROUP && next_state == LOAD_GROUP)
         mem_addr <= slv_reg5 + group_col;
       else if (mem_complete && next_state == LOAD_GROUP || state == MATCHING_COMPUTE && next_state == MATCHING_LOAD)
         mem_addr <= mem_addr + GROUP_WIDTH;
@@ -551,13 +553,7 @@ input                                     bus2ip_mstwr_dst_dsc_n;
     begin
       if (!Bus2IP_Resetn || !mem_complete)
         mem_trig <= 0;
-      else if (state == IDLE && next_state == LOAD_FACE1 ||
-               state == LOAD_FACE1 && next_state == LOAD_FACE2 ||
-               state == LOAD_FACE2 && next_state == LOAD_FACE3 ||
-               state == LOAD_FACE3 && next_state == LOAD_FACE4 ||
-               state == LOAD_FACE4 && next_state == LOAD_GROUP ||
-               state == MATCHING_COMPUTE && next_state == MATCHING_LOAD ||
-               state == MATCHING_COMPUTE && next_state == LOAD_GROUP)
+      else if (state != next_state && next_state != IDLE && next_state != MATCHING_COMPUTE)
         mem_trig <= 1;
       else
         mem_trig <= mem_trig;
@@ -568,10 +564,7 @@ input                                     bus2ip_mstwr_dst_dsc_n;
   integer pixel_index;
   always @(posedge Bus2IP_Clk)
     begin
-      if (!Bus2IP_Resetn)
-        for (pixel_index = 0; pixel_index < 256; pixel_index = pixel_index + 1)
-          face1[pixel_index] <= 0;
-      else if (state == LOAD_FACE1 && mem_data_trig)
+      if (state == LOAD_FACE1 && mem_data_trig)
         begin
           for (pixel_index = 0; pixel_index < 255; pixel_index = pixel_index + 1)
             face1[pixel_index] <= face1[pixel_index+1];
@@ -584,10 +577,7 @@ input                                     bus2ip_mstwr_dst_dsc_n;
     
   always @(posedge Bus2IP_Clk)
     begin
-      if (!Bus2IP_Resetn)
-        for (pixel_index = 0; pixel_index < 256; pixel_index = pixel_index + 1)
-          face2[pixel_index] <= 0;
-      else if (state == LOAD_FACE2 && mem_data_trig)
+      if (state == LOAD_FACE2 && mem_data_trig)
         begin
           for (pixel_index = 0; pixel_index < 255; pixel_index = pixel_index + 1)
             face2[pixel_index] <= face2[pixel_index+1];
@@ -600,10 +590,7 @@ input                                     bus2ip_mstwr_dst_dsc_n;
     
   always @(posedge Bus2IP_Clk)
     begin
-      if (!Bus2IP_Resetn)
-        for (pixel_index = 0; pixel_index < 256; pixel_index = pixel_index + 1)
-          face3[pixel_index] <= 0;
-      else if (state == LOAD_FACE3 && mem_data_trig)
+      if (state == LOAD_FACE3 && mem_data_trig)
         begin
           for (pixel_index = 0; pixel_index < 255; pixel_index = pixel_index + 1)
             face3[pixel_index] <= face3[pixel_index+1];
@@ -616,10 +603,7 @@ input                                     bus2ip_mstwr_dst_dsc_n;
     
   always @(posedge Bus2IP_Clk)
     begin
-      if (!Bus2IP_Resetn)
-        for (pixel_index = 0; pixel_index < 256; pixel_index = pixel_index + 1)
-          face4[pixel_index] <= 0;
-      else if (state == LOAD_FACE4 && mem_data_trig)
+      if (state == LOAD_FACE4 && mem_data_trig)
         begin
           for (pixel_index = 0; pixel_index < 255; pixel_index = pixel_index + 1)
             face4[pixel_index] <= face4[pixel_index+1];
@@ -632,10 +616,7 @@ input                                     bus2ip_mstwr_dst_dsc_n;
     
   always @(posedge Bus2IP_Clk)
     begin
-      if (!Bus2IP_Resetn)
-        for (pixel_index = 0; pixel_index < 256; pixel_index = pixel_index + 1)
-          group[pixel_index] <= 0;
-      else if ((state == LOAD_GROUP || state == MATCHING_LOAD) && mem_data_trig)
+      if ((state == LOAD_GROUP || state == MATCHING_LOAD) && mem_data_trig)
         begin
           for (pixel_index = 0; pixel_index < 255; pixel_index = pixel_index + 1)
             group[pixel_index] <= group[pixel_index+1];
@@ -710,6 +691,7 @@ input                                     bus2ip_mstwr_dst_dsc_n;
           slv_reg15 <= 0;
           slv_reg16 <= 0;
           slv_reg17 <= 0;
+		  /*
           slv_reg18 <= 0;
           slv_reg19 <= 0;
           slv_reg20 <= 0;
@@ -724,6 +706,7 @@ input                                     bus2ip_mstwr_dst_dsc_n;
           slv_reg29 <= 0;
           slv_reg30 <= 0;
           slv_reg31 <= 0;
+		  */
         end
       else
         case ( slv_reg_write_sel )
@@ -817,6 +800,7 @@ input                                     bus2ip_mstwr_dst_dsc_n;
               if ( Bus2IP_BE[byte_index] == 1 )
                 for ( bit_index = byte_index*8; bit_index <= byte_index*8+7; bit_index = bit_index+1 )
                   slv_reg17[bit_index] <= Bus2IP_Data[bit_index];
+		  /*
           32'b00000000000000000010000000000000 :
             for ( byte_index = 0; byte_index <= (C_SLV_DWIDTH/8)-1; byte_index = byte_index+1 )
               if ( Bus2IP_BE[byte_index] == 1 )
@@ -887,6 +871,7 @@ input                                     bus2ip_mstwr_dst_dsc_n;
               if ( Bus2IP_BE[byte_index] == 1 )
                 for ( bit_index = byte_index*8; bit_index <= byte_index*8+7; bit_index = bit_index+1 )
                   slv_reg31[bit_index] <= Bus2IP_Data[bit_index];
+		  */
           default : 
             begin
               slv_reg0 <= (next_state == IDLE ? 0 : 1);
@@ -908,7 +893,7 @@ input                                     bus2ip_mstwr_dst_dsc_n;
     end // SLAVE_REG_WRITE_PROC
 
   // implement slave model register read mux
-  always @( slv_reg_read_sel or slv_reg0 or slv_reg1 or slv_reg2 or slv_reg3 or slv_reg4 or slv_reg5 or slv_reg6 or slv_reg7 or slv_reg8 or slv_reg9 or slv_reg10 or slv_reg11 or slv_reg12 or slv_reg13 or slv_reg14 or slv_reg15 or slv_reg16 or slv_reg17 or slv_reg18 or slv_reg19 or slv_reg20 or slv_reg21 or slv_reg22 or slv_reg23 or slv_reg24 or slv_reg25 or slv_reg26 or slv_reg27 or slv_reg28 or slv_reg29 or slv_reg30 or slv_reg31 )
+  always @( slv_reg_read_sel or slv_reg0 or slv_reg1 or slv_reg2 or slv_reg3 or slv_reg4 or slv_reg5 or slv_reg6 or slv_reg7 or slv_reg8 or slv_reg9 or slv_reg10 or slv_reg11 or slv_reg12 or slv_reg13 or slv_reg14 or slv_reg15 or slv_reg16 or slv_reg17 /*or slv_reg18 or slv_reg19 or slv_reg20 or slv_reg21 or slv_reg22 or slv_reg23 or slv_reg24 or slv_reg25 or slv_reg26 or slv_reg27 or slv_reg28 or slv_reg29 or slv_reg30 or slv_reg31*/ )
     begin: SLAVE_REG_READ_PROC
 
       case ( slv_reg_read_sel )
@@ -930,6 +915,7 @@ input                                     bus2ip_mstwr_dst_dsc_n;
         32'b00000000000000010000000000000000 : slv_ip2bus_data <= slv_reg15;
         32'b00000000000000001000000000000000 : slv_ip2bus_data <= slv_reg16;
         32'b00000000000000000100000000000000 : slv_ip2bus_data <= slv_reg17;
+		/*
         32'b00000000000000000010000000000000 : slv_ip2bus_data <= slv_reg18;
         32'b00000000000000000001000000000000 : slv_ip2bus_data <= slv_reg19;
         32'b00000000000000000000100000000000 : slv_ip2bus_data <= slv_reg20;
@@ -944,6 +930,7 @@ input                                     bus2ip_mstwr_dst_dsc_n;
         32'b00000000000000000000000000000100 : slv_ip2bus_data <= slv_reg29;
         32'b00000000000000000000000000000010 : slv_ip2bus_data <= slv_reg30;
         32'b00000000000000000000000000000001 : slv_ip2bus_data <= slv_reg31;
+		*/
         default : slv_ip2bus_data <= 0;
       endcase
 

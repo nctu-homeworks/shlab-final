@@ -102,13 +102,11 @@ input                                     bus2ip_mstwr_dst_rdy_n;
 //----------------------------------------------------------------------------
 
   // --USER nets declarations added here, as needed for user logic
-  reg        [2 : 0]                        state;
+  reg        [2 : 0]                        state, next_state;
   reg        [C_MST_NATIVE_DATA_WIDTH-1:0]  buffer [BURST_BYTE/4-1 : 0];
   reg        [C_LENGTH_WIDTH-1:0]           remaining_len;
   reg        [C_MST_AWIDTH-1 : 0]           addr_offset;
   
-  reg                                       mstrd_dst_rdy_n;
-
   wire                                       Bus2IP_Clk;
   wire                                       Bus2IP_Resetn;
   wire                                       ip2bus_mstrd_req;
@@ -165,7 +163,6 @@ input                                     bus2ip_mstwr_dst_rdy_n;
   assign ip2bus_mst_addr   = addr + addr_offset;
   assign ip2bus_mst_be     = 4'b1111;  // don't care
   assign ip2bus_mst_type   = mst_cmd_sm_rd_req;     // set to burst transfer
-  assign ip2bus_mstrd_dst_rdy_n = mstrd_dst_rdy_n;
   assign ip2bus_mstrd_dst_dsc_n = 1;
   assign ip2bus_mst_length = mst_cmd_length;
 
@@ -182,18 +179,42 @@ input                                     bus2ip_mstwr_dst_rdy_n;
     begin
       if (Bus2IP_Resetn == 1'b0)
         state <= IDLE;
-      else if (state == IDLE && trig == 1)
-        state <= WAIT_READ;
-      else if (state == WAIT_READ && bus2ip_mst_cmdack == 1)
-        state <= READ;
-      else if (state == READ && bus2ip_mst_cmplt == 1)
-        if (remaining_len > 0)
-          state <= WAIT_READ;
-        else
-          state <= IDLE;
       else
-        state <= state;
+        state <= next_state;
     end
+
+	always@(*)
+		begin
+			case(state)
+				IDLE: 
+					begin
+						if (trig)
+							next_state = WAIT_READ;
+						else
+							next_state = IDLE;
+					end
+				WAIT_READ:
+					begin
+						if (bus2ip_mst_cmdack)
+							next_state = READ;
+						else
+							next_state = WAIT_READ;
+					end
+				READ:
+					begin
+						if (!bus2ip_mst_cmplt)
+							next_state = READ;
+						else if (remaining_len > 0)
+							next_state = WAIT_READ;
+						else
+							next_state = IDLE;
+					end
+				default:
+					begin
+						next_state = IDLE;
+					end
+			endcase
+		end
   
   //----------------------------------------------------------------------------
   // The interface of this module
@@ -256,24 +277,18 @@ input                                     bus2ip_mstwr_dst_rdy_n;
   //----------------------------------------------------------------------------
   always@(posedge Bus2IP_Clk)
     begin
-      if (Bus2IP_Resetn == 1'b0 || state != WAIT_READ || bus2ip_mst_cmdack == 1'b1)
+      if (Bus2IP_Resetn == 1'b0 || next_state == READ)
         mst_cmd_sm_rd_req <= 0;
-	   else
+	    else if (state == WAIT_READ)
         mst_cmd_sm_rd_req <= 1;
+			else
+				mst_cmd_sm_rd_req <= mst_cmd_sm_rd_req;
     end
 	 
   //----------------------------------------------------------------------------
   // mstrd_dst_rdy_n control
   //----------------------------------------------------------------------------
-  always@(posedge Bus2IP_Clk)
-    begin
-      if (Bus2IP_Resetn == 1'b0 || bus2ip_mstrd_eof_n == 1'b0)
-        mstrd_dst_rdy_n <= 1'b1;
-      else if (state == WAIT_READ)
-        mstrd_dst_rdy_n <= 1'b0;
-      else
-        mstrd_dst_rdy_n <= mstrd_dst_rdy_n;
-    end
+  assign ip2bus_mstrd_dst_rdy_n = (state == WAIT_READ || state == READ) ? 1'b0 : 1'b1;
 
   // ***************************************************************************
   // read single-word end
