@@ -63,8 +63,9 @@ parameter  LOAD_FACE2 = 4'd2;
 parameter  LOAD_FACE3 = 4'd3;
 parameter  LOAD_FACE4 = 4'd4;
 parameter  LOAD_GROUP = 4'd5;
-parameter  MATCHING_COMPUTE = 4'd6;
-parameter  MATCHING_LOAD = 4'd7;
+parameter  LOAD_NEXT_GROUP = 4'd6;
+parameter  MATCHING_COMPUTE = 4'd7;
+parameter  MATCHING_LOAD = 4'd8;
 
 parameter  FACE_SIZE = 1024;
 parameter  GROUP_WIDTH = 1920;
@@ -252,8 +253,14 @@ input                                     bus2ip_mstwr_dst_dsc_n;
   reg      [12 : 0]                          group_row, group_col, group_row_count;
   reg      [3  : 0]                          count_tick;
 
+  reg                                        clk;
+  always @(posedge Bus2IP_Clk)
+    begin
+      clk <= ~clk;
+    end
+  
 	assign dbg_trig = {7'b0000000, slv_reg0[0]};
-	assign dbg_data = {group_col[11:0], group_row_count[11:0], mem_complete, mem_data_trig, mem_trig, state[2:0], slv_reg0[0], Bus2IP_Clk};
+	assign dbg_data = {group_col[10:0], group_row_count[11:0], mem_complete, mem_data_trig, mem_trig, state[3:0], slv_reg0[0], clk};
   
   get_mem getmem(mem_addr, mem_length, mem_trig, mem_complete, mem_data, mem_data_trig, mem_count,
     Bus2IP_Clk,                     // Bus to IP clock
@@ -401,7 +408,7 @@ input                                     bus2ip_mstwr_dst_dsc_n;
           end
         LOAD_FACE1:
           begin
-            if (mem_complete)
+            if (mem_complete && !mem_trig)
               next_state = LOAD_GROUP; //LOAD_FACE2;
             else
               next_state = LOAD_FACE1;
@@ -431,7 +438,14 @@ input                                     bus2ip_mstwr_dst_dsc_n;
 				*/
         LOAD_GROUP:
           begin
-            if (mem_complete && group_row_count >= 31)
+            if (mem_complete && !mem_trig)
+              next_state = LOAD_NEXT_GROUP;
+            else
+              next_state = LOAD_GROUP;
+          end
+        LOAD_NEXT_GROUP:
+          begin
+            if (group_row_count >= 32)
               next_state = MATCHING_COMPUTE;
             else
               next_state = LOAD_GROUP;
@@ -449,7 +463,7 @@ input                                     bus2ip_mstwr_dst_dsc_n;
           end
         MATCHING_LOAD:
           begin
-            if (mem_complete)
+            if (mem_complete && !mem_trig)
               next_state = MATCHING_COMPUTE;
             else
               next_state = MATCHING_LOAD;
@@ -474,10 +488,11 @@ input                                     bus2ip_mstwr_dst_dsc_n;
   always @(posedge Bus2IP_Clk)
     begin
       if (!Bus2IP_Resetn || 
-          state != LOAD_GROUP && state != MATCHING_COMPUTE && state != MATCHING_LOAD || 
+          state != LOAD_GROUP && state != LOAD_NEXT_GROUP && state != MATCHING_COMPUTE && state != MATCHING_LOAD || 
           state == MATCHING_COMPUTE && next_state == LOAD_GROUP)
         group_row_count <= 0;
-      else if (mem_complete)
+      else if (state == LOAD_GROUP && next_state == LOAD_NEXT_GROUP || 
+               state == MATCHING_LOAD && next_state == MATCHING_COMPUTE)
         group_row_count <= group_row_count + 1;
       else
         group_row_count <= group_row_count;
@@ -544,7 +559,7 @@ input                                     bus2ip_mstwr_dst_dsc_n;
     begin
       if (!Bus2IP_Resetn)
         mem_trig <= 0;
-      else if (state != next_state && next_state != IDLE && next_state != MATCHING_COMPUTE)
+      else if (state != next_state && next_state != IDLE && next_state != MATCHING_COMPUTE && next_state != LOAD_NEXT_GROUP)
         mem_trig <= 1;
 			else if (!mem_complete)
 				mem_trig <= 0;
