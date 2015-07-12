@@ -68,16 +68,13 @@ int32 match(CImage *group, CImage *face, int *posx, int *posy);
 
 volatile uint32 *hw_trig = (uint32 *) (XPAR_FINDFACE_0_BASEADDR);
 volatile uint32 *hw_face1_addr = (uint32 *) (XPAR_FINDFACE_0_BASEADDR + 4);
-/*
 volatile uint32 *hw_face2_addr = (uint32 *) (XPAR_FINDFACE_0_BASEADDR + 8);
 volatile uint32 *hw_face3_addr = (uint32 *) (XPAR_FINDFACE_0_BASEADDR + 12);
 volatile uint32 *hw_face4_addr = (uint32 *) (XPAR_FINDFACE_0_BASEADDR + 16);
-*/
 volatile uint32 *hw_group_addr = (uint32 *) (XPAR_FINDFACE_0_BASEADDR + 20);
 volatile uint32 *hw_min_sad1 = (uint32 *) (XPAR_FINDFACE_0_BASEADDR + 24);
 volatile uint32 *hw_min_x1 = (uint32 *) (XPAR_FINDFACE_0_BASEADDR + 28);
 volatile uint32 *hw_min_y1 = (uint32 *) (XPAR_FINDFACE_0_BASEADDR + 32);
-/*
 volatile uint32 *hw_min_sad2 = (uint32 *) (XPAR_FINDFACE_0_BASEADDR + 36);
 volatile uint32 *hw_min_x2 = (uint32 *) (XPAR_FINDFACE_0_BASEADDR + 40);
 volatile uint32 *hw_min_y2 = (uint32 *) (XPAR_FINDFACE_0_BASEADDR + 44);
@@ -87,7 +84,6 @@ volatile uint32 *hw_min_y3 = (uint32 *) (XPAR_FINDFACE_0_BASEADDR + 56);
 volatile uint32 *hw_min_sad4 = (uint32 *) (XPAR_FINDFACE_0_BASEADDR + 60);
 volatile uint32 *hw_min_x4 = (uint32 *) (XPAR_FINDFACE_0_BASEADDR + 64);
 volatile uint32 *hw_min_y4 = (uint32 *) (XPAR_FINDFACE_0_BASEADDR + 68);
-*/
 
 int main(void)
 {
@@ -123,7 +119,7 @@ int main(void)
 void findface(void *pvParameters)
 {
     TickType_t counter;
-    CImage group, face;
+    CImage group, face1, face2, face3, face4;
     int  width, height;
     int  posx = 0, posy = 0;
     int32 cost;
@@ -136,7 +132,10 @@ void findface(void *pvParameters)
     width = group.width, height = group.height;
 
     /* read the 32x32 target face image */
-    read_pnm_image("face1.pgm", &face);
+    read_pnm_image("face1.pgm", &face1);
+    read_pnm_image("face2.pgm", &face2);
+    read_pnm_image("face3.pgm", &face3);
+    read_pnm_image("face4.pgm", &face4);
     xil_printf("done in %ld msec.\n\r", (xTaskGetTickCount() - counter)*MSEC_PER_TICK);
 
     /* perform median filter for noise removal */
@@ -152,20 +151,29 @@ void findface(void *pvParameters)
     //                          face.pix, face.width, face.height,
     //                          1, 4));
     counter = xTaskGetTickCount();
-    *hw_face1_addr = (uint32) face.pix;
+    *hw_face1_addr = (uint32) face1.pix;
+    *hw_face2_addr = (uint32) face2.pix;
+    *hw_face3_addr = (uint32) face3.pix;
+    *hw_face4_addr = (uint32) face4.pix;
     *hw_group_addr = (uint32) group.pix;
     *hw_trig = 1;
     while (*hw_trig);
     //cost = match(&group, &face, &posx, &posy);
     xil_printf("done in %ld msec.\n\r", (xTaskGetTickCount() - counter)*MSEC_PER_TICK);
     //xil_printf("** Found the face at (%d, %d) with cost %ld\n\r\n\r", posx, posy, cost);
-    xil_printf("** Found the face at (%d, %d) with cost %ld\n\r\n\r", *hw_min_x1, *hw_min_y1, *hw_min_sad1);
+    xil_printf("** Found the face1 at (%d, %d) with cost %ld\n\r", *hw_min_x1, *hw_min_y1, *hw_min_sad1);
+    xil_printf("** Found the face2 at (%d, %d) with cost %ld\n\r", *hw_min_x2, *hw_min_y2, *hw_min_sad2);
+    xil_printf("** Found the face3 at (%d, %d) with cost %ld\n\r", *hw_min_x3, *hw_min_y3, *hw_min_sad3);
+    xil_printf("** Found the face4 at (%d, %d) with cost %ld\n\r\n\r", *hw_min_x4, *hw_min_y4, *hw_min_sad4);
 
     /* set app_done flag */
     *pDone = 1;
 
     /* free allocated memory */
-    vPortFree(face.pix);
+    vPortFree(face1.pix);
+    vPortFree(face2.pix);
+    vPortFree(face3.pix);
+    vPortFree(face4.pix);
     vPortFree(group.pix);
 
     vTaskGetRunTimeStats(pcWriteBuffer);

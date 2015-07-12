@@ -242,12 +242,13 @@ input                                     bus2ip_mstwr_dst_dsc_n;
   reg      [11 : 0]                          mem_length;
   reg                                        mem_trig;
   wire                                       mem_data_trig, mem_complete;
-  reg      [31 : 0]                          min_x1; //, min_x2, min_x3, min_x4;
-  reg      [31 : 0]                          min_y1; //, min_y2, min_y3, min_y4;
-  reg      [31 : 0]                          min_sad1; //, min_sad2, min_sad3, min_sad4;
+  reg      [31 : 0]                          min_x1, min_x2, min_x3, min_x4;
+  reg      [31 : 0]                          min_y1, min_y2, min_y3, min_y4;
+  reg      [31 : 0]                          min_sad1, min_sad2, min_sad3, min_sad4;
   reg      [31 : 0]                          sad;
   wire                                       clear;
   
+  reg      [1  : 0]                          run;
   reg      [3  : 0]                          state, next_state;
   reg      [12 : 0]                          group_row, group_col, group_row_count;
   reg      [3  : 0]                          count_tick;
@@ -295,13 +296,13 @@ input                                     bus2ip_mstwr_dst_dsc_n;
   // Remember min_sad
   always @(posedge Bus2IP_Clk)
     begin
-      if (!Bus2IP_Resetn || state == LOAD_FACE1)
+      if (!Bus2IP_Resetn || state == IDLE && next_state == LOAD_FACE1)
         begin
           min_sad1 <= 999999;
           min_x1 <= 0;
           min_y1 <= 0;
         end
-      else if (count_tick == 7 && sad < min_sad1)
+      else if (run == 0 && count_tick == 7 && sad < min_sad1)
         begin
           min_sad1 <= sad;
           min_x1 <= group_col;
@@ -315,18 +316,17 @@ input                                     bus2ip_mstwr_dst_dsc_n;
         end
     end
     
-	/*
   always @(posedge Bus2IP_Clk)
     begin
-      if (!Bus2IP_Resetn || clear)
+      if (!Bus2IP_Resetn || state == IDLE && next_state == LOAD_FACE1)
         begin
           min_sad2 <= 999999;
           min_x2 <= 0;
           min_y2 <= 0;
         end
-      else if (count_tick == 8 && sad2 < min_sad2)
+      else if (run == 1 && count_tick == 7 && sad < min_sad2)
         begin
-          min_sad2 <= sad2;
+          min_sad2 <= sad;
           min_x2 <= group_col;
           min_y2 <= group_row;
         end
@@ -340,15 +340,15 @@ input                                     bus2ip_mstwr_dst_dsc_n;
     
   always @(posedge Bus2IP_Clk)
     begin
-      if (!Bus2IP_Resetn || clear)
+      if (!Bus2IP_Resetn || state == IDLE && next_state == LOAD_FACE1)
         begin
           min_sad3 <= 999999;
           min_x3 <= 0;
           min_y3 <= 0;
         end
-      else if (count_tick == 8 && sad3 < min_sad3)
+      else if (run == 2 && count_tick == 7 && sad < min_sad3)
         begin
-          min_sad3 <= sad3;
+          min_sad3 <= sad;
           min_x3 <= group_col;
           min_y3 <= group_row;
         end
@@ -362,15 +362,15 @@ input                                     bus2ip_mstwr_dst_dsc_n;
     
   always @(posedge Bus2IP_Clk)
     begin
-      if (!Bus2IP_Resetn || clear)
+      if (!Bus2IP_Resetn || state == IDLE && next_state == LOAD_FACE1)
         begin
           min_sad4 <= 999999;
           min_x4 <= 0;
           min_y4 <= 0;
         end
-      else if (count_tick == 8 && sad4 < min_sad4)
+      else if (run == 3 && count_tick == 7 && sad < min_sad4)
         begin
-          min_sad4 <= sad4;
+          min_sad4 <= sad;
           min_x4 <= group_col;
           min_y4 <= group_row;
         end
@@ -381,7 +381,6 @@ input                                     bus2ip_mstwr_dst_dsc_n;
           min_y4 <= min_y4;
         end
     end
-  */
   
   // FSM
   always @(posedge Bus2IP_Clk)
@@ -457,8 +456,10 @@ input                                     bus2ip_mstwr_dst_dsc_n;
             else if (group_col < GROUP_WIDTH - 32-1)
               /* The last column is ignored, fix if have time */
               next_state = LOAD_GROUP;
-            else
+            else if (run == 3)
               next_state = IDLE;
+            else
+              next_state = LOAD_FACE1;
           end
         MATCHING_SHIFT:
           begin
@@ -476,6 +477,17 @@ input                                     bus2ip_mstwr_dst_dsc_n;
             next_state = IDLE;
           end
       endcase
+    end
+    
+  // run control
+  always @(posedge Bus2IP_Clk)
+    begin
+      if (!Bus2IP_Resetn || state == IDLE)
+        run <= 0;
+      else if (state == MATCHING_COMPUTE && next_state == LOAD_FACE1)
+        run <= run + 1;
+      else
+        run <= run;
     end
     
   // count_tick control
@@ -526,10 +538,22 @@ input                                     bus2ip_mstwr_dst_dsc_n;
   // Memory setup
   always @(*)
     begin
-      case (state)
-        LOAD_FACE1:
+      case ({state, run})
+        {LOAD_FACE1, 2'd0}:
           begin
             mem_addr = slv_reg1;
+          end
+        {LOAD_FACE1, 2'd1}:
+          begin
+            mem_addr = slv_reg2;
+          end
+        {LOAD_FACE1, 2'd2}:
+          begin
+            mem_addr = slv_reg3;
+          end
+        {LOAD_FACE1, 2'd3}:
+          begin
+            mem_addr = slv_reg4;
           end
 	  			/*
         LOAD_FACE2:
@@ -1095,7 +1119,6 @@ input                                     bus2ip_mstwr_dst_dsc_n;
               slv_reg6 <= min_sad1;
               slv_reg7 <= min_x1;
               slv_reg8 <= min_y1;
-			  /*
               slv_reg9 <= min_sad2;
               slv_reg10 <= min_x2;
               slv_reg11 <= min_y2;
@@ -1105,7 +1128,6 @@ input                                     bus2ip_mstwr_dst_dsc_n;
               slv_reg15 <= min_sad4;
               slv_reg16 <= min_x4;
               slv_reg17 <= min_y4;
-			  */
             end
         endcase
 
