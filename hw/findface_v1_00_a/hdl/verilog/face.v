@@ -7,7 +7,7 @@ module face (
 
   input wire                                Bus2IP_Clk;
   input wire [8*32*32-1 : 0]                face_data, group_data;
-  output wire[31 : 0]                       sad;
+  output reg [31 : 0]                       sad;
 
   wire       [8 : 0]                        f_pixel[1023:0];
   wire       [8 : 0]                        g_pixel[1023:0];
@@ -23,7 +23,10 @@ module face (
   wire       [16 : 0]                       part_sum8[3:0];
   reg        [17 : 0]                       part_sum9[1:0];
   
-  assign sad = part_sum9[0] + part_sum9[1];
+  always @(posedge Bus2IP_Clk)
+    begin
+      sad <= part_sum9[0] + part_sum9[1];
+    end
   
   // f_pixel, g_pixel, diff
   genvar pixel_index;

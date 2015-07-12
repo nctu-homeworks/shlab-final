@@ -1,7 +1,6 @@
 `uselib lib=unisims_ver
 `uselib lib=proc_common_v3_00_a
 `include "get_mem.v"
-`include "face.v"
 
 module user_logic
 (
@@ -65,7 +64,8 @@ parameter  LOAD_FACE4 = 4'd4;
 parameter  LOAD_GROUP = 4'd5;
 parameter  LOAD_NEXT_GROUP = 4'd6;
 parameter  MATCHING_COMPUTE = 4'd7;
-parameter  MATCHING_LOAD = 4'd8;
+parameter  MATCHING_SHIFT = 4'd8;
+parameter  MATCHING_LOAD = 4'd9;
 
 parameter  FACE_SIZE = 1024;
 parameter  GROUP_WIDTH = 1920;
@@ -235,8 +235,7 @@ input                                     bus2ip_mstwr_dst_dsc_n;
   reg      [31 : 0]                          face3[255 : 0];
   reg      [31 : 0]                          face4[255 : 0];
 	*/
-  reg      [31 : 0]                          group[255 : 0];
-  wire     [32*32*8-1 : 0]                   g_pixel, f_pixel;
+  reg      [31 : 0]                          group[255+32 : 0];
   wire     [11 : 0]                          mem_count;
   wire     [31 : 0]                          mem_data;
   reg      [31 : 0]                          mem_addr;
@@ -246,7 +245,7 @@ input                                     bus2ip_mstwr_dst_dsc_n;
   reg      [31 : 0]                          min_x1; //, min_x2, min_x3, min_x4;
   reg      [31 : 0]                          min_y1; //, min_y2, min_y3, min_y4;
   reg      [31 : 0]                          min_sad1; //, min_sad2, min_sad3, min_sad4;
-  wire     [31 : 0]                          sad;
+  reg      [31 : 0]                          sad;
   wire                                       clear;
   
   reg      [3  : 0]                          state, next_state;
@@ -254,13 +253,17 @@ input                                     bus2ip_mstwr_dst_dsc_n;
   reg      [3  : 0]                          count_tick;
 
   reg                                        clk;
+  reg      [1  : 0]                          group_state;
   always @(posedge Bus2IP_Clk)
     begin
       clk <= ~clk;
     end
   
-	assign dbg_trig = {7'b0000000, slv_reg0[0]};
-	assign dbg_data = {group_col[10:0], group_row_count[11:0], mem_complete, mem_data_trig, mem_trig, state[3:0], slv_reg0[0], clk};
+  wire trig1;
+  assign trig1 = group_col >= 880 ? 1'b1 : 0;
+  
+	assign dbg_trig = {6'b0, trig1, slv_reg0[0]};
+	assign dbg_data = {1'b0, clk, mem_complete, mem_data_trig, state[3:0], mem_addr[7:0], group[0][7:0], face1[0][7:0]};
   
   get_mem getmem(mem_addr, mem_length, mem_trig, mem_complete, mem_data, mem_data_trig, mem_count,
     Bus2IP_Clk,                     // Bus to IP clock
@@ -288,22 +291,17 @@ input                                     bus2ip_mstwr_dst_dsc_n;
     ip2bus_mstwr_eof_n,             // Ip to Bus master write end of frame
     bus2ip_mstwr_dst_rdy_n         // Bus to Ip master write dest. ready
   );
-  face ff(
-    Bus2IP_Clk,
-    f_pixel, g_pixel,
-    sad
-  );
   
   // Remember min_sad
   always @(posedge Bus2IP_Clk)
     begin
-      if (!Bus2IP_Resetn || clear)
+      if (!Bus2IP_Resetn || state == LOAD_FACE1)
         begin
           min_sad1 <= 999999;
           min_x1 <= 0;
           min_y1 <= 0;
         end
-      else if (count_tick == 8 && sad < min_sad1)
+      else if (count_tick == 7 && sad < min_sad1)
         begin
           min_sad1 <= sad;
           min_x1 <= group_col;
@@ -384,8 +382,6 @@ input                                     bus2ip_mstwr_dst_dsc_n;
         end
     end
   */
-
-  assign clear = (state != IDLE && state != MATCHING_COMPUTE && state != MATCHING_LOAD && state != LOAD_GROUP) ? 1'b1 : 0;
   
   // FSM
   always @(posedge Bus2IP_Clk)
@@ -454,12 +450,19 @@ input                                     bus2ip_mstwr_dst_dsc_n;
           begin
             if (count_tick < 8)
               next_state = MATCHING_COMPUTE;
+            else if (group_col[1:0] != 2'b11)
+              next_state = MATCHING_SHIFT;
             else if (group_row_count != GROUP_HEIGHT)
               next_state = MATCHING_LOAD;
-            else if (group_col < GROUP_WIDTH - 32)
+            else if (group_col < GROUP_WIDTH - 32-1)
+              /* The last column is ignored, fix if have time */
               next_state = LOAD_GROUP;
             else
               next_state = IDLE;
+          end
+        MATCHING_SHIFT:
+          begin
+            next_state = MATCHING_COMPUTE;
           end
         MATCHING_LOAD:
           begin
@@ -488,7 +491,7 @@ input                                     bus2ip_mstwr_dst_dsc_n;
   always @(posedge Bus2IP_Clk)
     begin
       if (!Bus2IP_Resetn || 
-          state != LOAD_GROUP && state != LOAD_NEXT_GROUP && state != MATCHING_COMPUTE && state != MATCHING_LOAD || 
+          state != LOAD_GROUP && state != LOAD_NEXT_GROUP && state != MATCHING_COMPUTE && state != MATCHING_SHIFT && state != MATCHING_LOAD || 
           state == MATCHING_COMPUTE && next_state == LOAD_GROUP)
         group_row_count <= 0;
       else if (state == LOAD_GROUP && next_state == LOAD_NEXT_GROUP || 
@@ -500,7 +503,7 @@ input                                     bus2ip_mstwr_dst_dsc_n;
   
   always @(posedge Bus2IP_Clk)
     begin
-      if (!Bus2IP_Resetn || next_state != MATCHING_COMPUTE && next_state != MATCHING_LOAD)
+      if (!Bus2IP_Resetn || next_state != MATCHING_COMPUTE && next_state != MATCHING_LOAD && next_state != MATCHING_SHIFT)
         group_row <= 0;
       else if (state == MATCHING_COMPUTE && next_state == MATCHING_LOAD)
         group_row <= group_row + 1;
@@ -510,10 +513,12 @@ input                                     bus2ip_mstwr_dst_dsc_n;
   
   always @(posedge Bus2IP_Clk)
     begin
-      if (!Bus2IP_Resetn || next_state != MATCHING_COMPUTE && next_state != MATCHING_LOAD && next_state != LOAD_GROUP)
+      if (!Bus2IP_Resetn || next_state != MATCHING_COMPUTE && next_state != MATCHING_LOAD && next_state != LOAD_GROUP && next_state != LOAD_NEXT_GROUP && next_state != MATCHING_SHIFT)
         group_col <= 0;
-      else if (state == MATCHING_COMPUTE && next_state == LOAD_GROUP)
+      else if (state == MATCHING_COMPUTE && (next_state == LOAD_GROUP || next_state == MATCHING_SHIFT))
         group_col <= group_col + 1;
+      else if (state == MATCHING_COMPUTE && next_state == MATCHING_LOAD)
+        group_col <= group_col - 3;
       else
         group_col <= group_col;
     end
@@ -550,7 +555,7 @@ input                                     bus2ip_mstwr_dst_dsc_n;
   always @(posedge Bus2IP_Clk)
     begin
       if (next_state == MATCHING_LOAD || next_state == LOAD_GROUP)
-        mem_length <= 32;
+        mem_length <= 36;
       else
         mem_length <= FACE_SIZE;
     end
@@ -559,7 +564,7 @@ input                                     bus2ip_mstwr_dst_dsc_n;
     begin
       if (!Bus2IP_Resetn)
         mem_trig <= 0;
-      else if (state != next_state && next_state != IDLE && next_state != MATCHING_COMPUTE && next_state != LOAD_NEXT_GROUP)
+      else if (state != next_state && next_state != IDLE && next_state != MATCHING_COMPUTE && next_state != LOAD_NEXT_GROUP && next_state != MATCHING_SHIFT)
         mem_trig <= 1;
 			else if (!mem_complete)
 				mem_trig <= 0;
@@ -624,27 +629,232 @@ input                                     bus2ip_mstwr_dst_dsc_n;
     end
 	*/
     
+  integer pixel_index2;
   always @(posedge Bus2IP_Clk)
     begin
       if ((state == LOAD_GROUP || state == MATCHING_LOAD) && mem_data_trig)
         begin
-          for (pixel_index = 0; pixel_index < 255; pixel_index = pixel_index + 1)
-            group[pixel_index] <= group[pixel_index+1];
-          group[255] <= mem_data;
+          for (pixel_index2 = 0; pixel_index2 < 255+32; pixel_index2 = pixel_index2 + 1)
+            group[pixel_index2] <= group[pixel_index2+1];
+          group[255+32] <= mem_data;
+          group_state <= 1;
         end
-      else
-        for (pixel_index = 0; pixel_index < 256; pixel_index = pixel_index + 1)
-          group[pixel_index] <= group[pixel_index];
+      else if (state == MATCHING_SHIFT)
+        begin
+          for (pixel_index2 = 0; pixel_index2 < 255+32; pixel_index2 = pixel_index2 + 1)
+            begin
+              group[pixel_index2][7:0] <= group[pixel_index2][15:8];
+              group[pixel_index2][15:8] <= group[pixel_index2][23:16];
+              group[pixel_index2][23:16] <= group[pixel_index2][31:24];
+              group[pixel_index2][31:24] <= group[pixel_index2+1][7:0];
+            end
+          group[255+32][7:0] <= group[255+32][15:8];
+          group[255+32][15:8] <= group[255+32][23:16];
+          group[255+32][23:16] <= group[255+32][31:24];
+          group[255+32][31:24] <= group[0][7:0];
+          group_state <= 2;
+        end
+      else if (state == MATCHING_COMPUTE && next_state == MATCHING_LOAD)
+        begin
+          for (pixel_index2 = 0; pixel_index2 < 255+32; pixel_index2 = pixel_index2 + 1)
+            begin
+              group[pixel_index2][31:24] <= group[pixel_index2][7:0];
+              group[pixel_index2+1][7:0] <= group[pixel_index2][15:8];
+              group[pixel_index2+1][15:8] <= group[pixel_index2][23:16];
+              group[pixel_index2+1][23:16] <= group[pixel_index2][31:24];
+            end
+          group[255+32][31:24] <= group[255+32][7:0];
+          group[0][7:0] <= group[255+32][15:8];
+          group[0][15:8] <= group[255+32][23:16];
+          group[0][23:16] <= group[255+32][31:24];
+          group_state <= 3;
+        end
+      else begin
+        for (pixel_index2 = 0; pixel_index2 < 256+32; pixel_index2 = pixel_index2 + 1)
+          group[pixel_index2] <= group[pixel_index2];
+        group_state <= 0; end
     end
   
-  genvar p_index;
+  
+  
+  wire       [8 : 0]                        f_pixel[1023:0];
+  wire       [8 : 0]                        g_pixel[1023:0];
+  wire       [8 : 0]                        diff[1023:0];
+  reg        [8 : 0]                        abs_diff[1023:0];
+  wire       [9 : 0]                        part_sum1[511:0];
+  wire       [10 : 0]                       part_sum2[255:0];
+  reg        [11 : 0]                       part_sum3[127:0];
+  wire       [12 : 0]                       part_sum4[63:0];
+  wire       [13 : 0]                       part_sum5[31:0];
+  reg        [14 : 0]                       part_sum6[15:0];
+  wire       [15 : 0]                       part_sum7[7:0];
+  wire       [16 : 0]                       part_sum8[3:0];
+  reg        [17 : 0]                       part_sum9[1:0];
+  
+  always @(posedge Bus2IP_Clk)
+    begin
+      sad <= part_sum9[0] + part_sum9[1];
+    end
+  
+  // f_pixel
+  genvar fpixel_index;
   generate
-    for ( p_index = 0; p_index <= 255; p_index = p_index+1 )
-      begin: g0
-        assign g_pixel[p_index*32+31 : p_index*32] = group[p_index];
-        assign f_pixel[p_index*32+31 : p_index*32] = face1[p_index];
+    for ( fpixel_index = 0; fpixel_index <= 255; fpixel_index = fpixel_index+1 )
+	    begin: g00
+        assign f_pixel[{fpixel_index, 2'b00}] = {1'b0, face1[fpixel_index][31:24]};
+        assign f_pixel[{fpixel_index, 2'b01}] = {1'b0, face1[fpixel_index][23:16]};
+        assign f_pixel[{fpixel_index, 2'b10}] = {1'b0, face1[fpixel_index][15:8]};
+        assign f_pixel[{fpixel_index, 2'b11}] = {1'b0, face1[fpixel_index][7:0]};
+		end
+  endgenerate
+  
+  // g_pixel
+  genvar gpixel_index;
+  generate
+    for ( gpixel_index = 0; gpixel_index <= 31; gpixel_index = gpixel_index+1 )
+	    begin: g01
+        assign g_pixel[{gpixel_index*8, 2'b00}] = {1'b0, group[gpixel_index*9][31:24]};
+        assign g_pixel[{gpixel_index*8, 2'b01}] = {1'b0, group[gpixel_index*9][23:16]};
+        assign g_pixel[{gpixel_index*8, 2'b10}] = {1'b0, group[gpixel_index*9][15:8]};
+        assign g_pixel[{gpixel_index*8, 2'b11}] = {1'b0, group[gpixel_index*9][7:0]};
+        assign g_pixel[{gpixel_index*8+1, 2'b00}] = {1'b0, group[gpixel_index*9+1][31:24]};
+        assign g_pixel[{gpixel_index*8+1, 2'b01}] = {1'b0, group[gpixel_index*9+1][23:16]};
+        assign g_pixel[{gpixel_index*8+1, 2'b10}] = {1'b0, group[gpixel_index*9+1][15:8]};
+        assign g_pixel[{gpixel_index*8+1, 2'b11}] = {1'b0, group[gpixel_index*9+1][7:0]};
+        assign g_pixel[{gpixel_index*8+2, 2'b00}] = {1'b0, group[gpixel_index*9+2][31:24]};
+        assign g_pixel[{gpixel_index*8+2, 2'b01}] = {1'b0, group[gpixel_index*9+2][23:16]};
+        assign g_pixel[{gpixel_index*8+2, 2'b10}] = {1'b0, group[gpixel_index*9+2][15:8]};
+        assign g_pixel[{gpixel_index*8+2, 2'b11}] = {1'b0, group[gpixel_index*9+2][7:0]};
+        assign g_pixel[{gpixel_index*8+3, 2'b00}] = {1'b0, group[gpixel_index*9+3][31:24]};
+        assign g_pixel[{gpixel_index*8+3, 2'b01}] = {1'b0, group[gpixel_index*9+3][23:16]};
+        assign g_pixel[{gpixel_index*8+3, 2'b10}] = {1'b0, group[gpixel_index*9+3][15:8]};
+        assign g_pixel[{gpixel_index*8+3, 2'b11}] = {1'b0, group[gpixel_index*9+3][7:0]};
+        assign g_pixel[{gpixel_index*8+4, 2'b00}] = {1'b0, group[gpixel_index*9+4][31:24]};
+        assign g_pixel[{gpixel_index*8+4, 2'b01}] = {1'b0, group[gpixel_index*9+4][23:16]};
+        assign g_pixel[{gpixel_index*8+4, 2'b10}] = {1'b0, group[gpixel_index*9+4][15:8]};
+        assign g_pixel[{gpixel_index*8+4, 2'b11}] = {1'b0, group[gpixel_index*9+4][7:0]};
+        assign g_pixel[{gpixel_index*8+5, 2'b00}] = {1'b0, group[gpixel_index*9+5][31:24]};
+        assign g_pixel[{gpixel_index*8+5, 2'b01}] = {1'b0, group[gpixel_index*9+5][23:16]};
+        assign g_pixel[{gpixel_index*8+5, 2'b10}] = {1'b0, group[gpixel_index*9+5][15:8]};
+        assign g_pixel[{gpixel_index*8+5, 2'b11}] = {1'b0, group[gpixel_index*9+5][7:0]};
+        assign g_pixel[{gpixel_index*8+6, 2'b00}] = {1'b0, group[gpixel_index*9+6][31:24]};
+        assign g_pixel[{gpixel_index*8+6, 2'b01}] = {1'b0, group[gpixel_index*9+6][23:16]};
+        assign g_pixel[{gpixel_index*8+6, 2'b10}] = {1'b0, group[gpixel_index*9+6][15:8]};
+        assign g_pixel[{gpixel_index*8+6, 2'b11}] = {1'b0, group[gpixel_index*9+6][7:0]};
+        assign g_pixel[{gpixel_index*8+7, 2'b00}] = {1'b0, group[gpixel_index*9+7][31:24]};
+        assign g_pixel[{gpixel_index*8+7, 2'b01}] = {1'b0, group[gpixel_index*9+7][23:16]};
+        assign g_pixel[{gpixel_index*8+7, 2'b10}] = {1'b0, group[gpixel_index*9+7][15:8]};
+        assign g_pixel[{gpixel_index*8+7, 2'b11}] = {1'b0, group[gpixel_index*9+7][7:0]};
+		end
+  endgenerate
+  
+  // diff
+  genvar diff_index;
+  generate
+    for ( diff_index = 0; diff_index <= 1023; diff_index = diff_index+1 )
+	    begin: g02
+        assign diff[diff_index] = f_pixel[diff_index] - g_pixel[diff_index];
       end
   endgenerate
+  
+  // abs_diff
+  integer abs_index;
+  always @( posedge Bus2IP_Clk )
+    begin
+		  for ( abs_index = 0; abs_index <= 1023; abs_index = abs_index+1 )
+		    abs_diff[abs_index] <= (diff[abs_index][8] == 1'b1) ? -diff[abs_index] : diff[abs_index];
+    end
+	 
+	 
+  // part_sum1
+  genvar psum1_index;
+  generate
+    for ( psum1_index = 0; psum1_index <= 511; psum1_index = psum1_index+1 )
+	    begin: g1
+		    assign part_sum1[psum1_index] = abs_diff[{psum1_index, 1'b0}] + abs_diff[{psum1_index, 1'b1}];
+		end
+  endgenerate
+	
+	
+  // part_sum2
+  genvar psum2_index;
+  generate
+    for ( psum2_index = 0; psum2_index <= 255; psum2_index = psum2_index+1 )
+	    begin: g2
+        assign part_sum2[psum2_index] = part_sum1[{psum2_index, 1'b0}] + part_sum1[{psum2_index, 1'b1}];
+		end
+  endgenerate	
+  
+  
+  // part_sum3
+  integer psum3_index;
+  always @( posedge Bus2IP_Clk )
+    begin
+		  for ( psum3_index = 0; psum3_index <= 127; psum3_index = psum3_index+1 )
+        part_sum3[psum3_index] <= part_sum2[{psum3_index, 1'b0}] + part_sum2[{psum3_index, 1'b1}];
+    end
+	
+	
+  // part_sum4
+  genvar psum4_index;
+  generate
+    for ( psum4_index = 0; psum4_index <= 63; psum4_index = psum4_index+1 )
+      begin: g3
+        assign part_sum4[psum4_index] = part_sum3[{psum4_index, 1'b0}] + part_sum3[{psum4_index, 1'b1}];
+		end
+  endgenerate	
+	
+	
+  // part_sum5
+  genvar psum5_index;
+  generate
+    for ( psum5_index = 0; psum5_index <= 31; psum5_index = psum5_index+1 )
+      begin: g4
+        assign part_sum5[psum5_index] = part_sum4[{psum5_index, 1'b0}] + part_sum4[{psum5_index, 1'b1}];
+		end
+  endgenerate	
+  
+  
+  // part_sum6
+  integer psum6_index;
+  always @( posedge Bus2IP_Clk )
+    begin
+		  for ( psum6_index = 0; psum6_index <= 15; psum6_index = psum6_index+1 )
+        part_sum6[psum6_index] <= part_sum5[{psum6_index, 1'b0}] + part_sum5[{psum6_index, 1'b1}];
+    end
+	
+	
+  // part_sum7
+  genvar psum7_index;
+  generate
+    for ( psum7_index = 0; psum7_index <= 7; psum7_index = psum7_index+1 )
+      begin: g5
+        assign part_sum7[psum7_index] = part_sum6[{psum7_index, 1'b0}] + part_sum6[{psum7_index, 1'b1}];
+      end
+  endgenerate	
+	
+	
+  // part_sum8
+  genvar psum8_index;
+  generate
+    for ( psum8_index = 0; psum8_index <= 3; psum8_index = psum8_index+1 )
+      begin: g6
+        assign part_sum8[psum8_index] = part_sum7[{psum8_index, 1'b0}] + part_sum7[{psum8_index, 1'b1}];
+		end
+  endgenerate	
+  
+  
+  // part_sum9
+  integer psum9_index;
+  always @( posedge Bus2IP_Clk )
+    begin
+      for ( psum9_index = 0; psum9_index <= 1; psum9_index = psum9_index+1 )
+        part_sum9[psum9_index] <= part_sum8[{psum9_index, 1'b0}] + part_sum8[{psum9_index, 1'b1}];
+    end
+   
+  
+  
+  
   
   
 

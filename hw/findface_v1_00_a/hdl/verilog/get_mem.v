@@ -47,7 +47,7 @@ parameter [2 : 0]
           WAIT_READ                      = 3'd1,
           READ                           = 3'd2;
 
-parameter BURST_BYTE                     = 4096;
+parameter BURST_BYTE                     = 1024;
 // -- ADD USER PARAMETERS ABOVE THIS LINE ------------
 
 // -- DO NOT EDIT BELOW THIS LINE --------------------
