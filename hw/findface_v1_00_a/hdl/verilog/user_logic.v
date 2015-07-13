@@ -736,13 +736,40 @@ input                                     bus2ip_mstwr_dst_dsc_n;
           end
       else if (state == MATCHING_COMPUTE)
         for (pixel_index2 = 0; pixel_index2 < 32; pixel_index2 = pixel_index2 + 1)
-          for (pixel_index3 = 0; pixel_index3 < 8; pixel_index3 = pixel_index3 + 1)
-            begin
-              group[pixel_index2*9+pixel_index3][7:0] <= group[pixel_index2*9+pixel_index3][15:8];
-              group[pixel_index2*9+pixel_index3][15:8] <= group[pixel_index2*9+pixel_index3][23:16];
-              group[pixel_index2*9+pixel_index3][23:16] <= group[pixel_index2*9+pixel_index3][31:24];
-              group[pixel_index2*9+pixel_index3][31:24] <= group[pixel_index2*9+pixel_index3+1][7:0];
-            end
+          begin
+            group[pixel_index2*9+pixel_index3+0][7:0]   <= group[pixel_index2*9+0][15:8];
+            group[pixel_index2*9+pixel_index3+0][15:8]  <= group[pixel_index2*9+0][23:16];
+            group[pixel_index2*9+pixel_index3+0][23:16] <= group[pixel_index2*9+0][31:24];
+            group[pixel_index2*9+pixel_index3+0][31:24] <= group[pixel_index2*9+0+1][7:0];
+            group[pixel_index2*9+pixel_index3+1][7:0]   <= group[pixel_index2*9+1][15:8];
+            group[pixel_index2*9+pixel_index3+1][15:8]  <= group[pixel_index2*9+1][23:16];
+            group[pixel_index2*9+pixel_index3+1][23:16] <= group[pixel_index2*9+1][31:24];
+            group[pixel_index2*9+pixel_index3+1][31:24] <= group[pixel_index2*9+1+1][7:0];
+            group[pixel_index2*9+pixel_index3+2][7:0]   <= group[pixel_index2*9+2][15:8];
+            group[pixel_index2*9+pixel_index3+2][15:8]  <= group[pixel_index2*9+2][23:16];
+            group[pixel_index2*9+pixel_index3+2][23:16] <= group[pixel_index2*9+2][31:24];
+            group[pixel_index2*9+pixel_index3+2][31:24] <= group[pixel_index2*9+2+1][7:0];
+            group[pixel_index2*9+pixel_index3+3][7:0]   <= group[pixel_index2*9+3][15:8];
+            group[pixel_index2*9+pixel_index3+3][15:8]  <= group[pixel_index2*9+3][23:16];
+            group[pixel_index2*9+pixel_index3+3][23:16] <= group[pixel_index2*9+3][31:24];
+            group[pixel_index2*9+pixel_index3+3][31:24] <= group[pixel_index2*9+3+1][7:0];
+            group[pixel_index2*9+pixel_index3+4][7:0]   <= group[pixel_index2*9+4][15:8];
+            group[pixel_index2*9+pixel_index3+4][15:8]  <= group[pixel_index2*9+4][23:16];
+            group[pixel_index2*9+pixel_index3+4][23:16] <= group[pixel_index2*9+4][31:24];
+            group[pixel_index2*9+pixel_index3+4][31:24] <= group[pixel_index2*9+4+1][7:0];
+            group[pixel_index2*9+pixel_index3+5][7:0]   <= group[pixel_index2*9+5][15:8];
+            group[pixel_index2*9+pixel_index3+5][15:8]  <= group[pixel_index2*9+5][23:16];
+            group[pixel_index2*9+pixel_index3+5][23:16] <= group[pixel_index2*9+5][31:24];
+            group[pixel_index2*9+pixel_index3+5][31:24] <= group[pixel_index2*9+5+1][7:0];
+            group[pixel_index2*9+pixel_index3+6][7:0]   <= group[pixel_index2*9+6][15:8];
+            group[pixel_index2*9+pixel_index3+6][15:8]  <= group[pixel_index2*9+6][23:16];
+            group[pixel_index2*9+pixel_index3+6][23:16] <= group[pixel_index2*9+6][31:24];
+            group[pixel_index2*9+pixel_index3+6][31:24] <= group[pixel_index2*9+6+1][7:0];
+            group[pixel_index2*9+pixel_index3+7][7:0]   <= group[pixel_index2*9+7][15:8];
+            group[pixel_index2*9+pixel_index3+7][15:8]  <= group[pixel_index2*9+7][23:16];
+            group[pixel_index2*9+pixel_index3+7][23:16] <= group[pixel_index2*9+7][31:24];
+            group[pixel_index2*9+pixel_index3+7][31:24] <= group[pixel_index2*9+7+1][7:0];
+          end
       else
         for (pixel_index2 = 0; pixel_index2 < 32; pixel_index2 = pixel_index2 + 1)
           begin
