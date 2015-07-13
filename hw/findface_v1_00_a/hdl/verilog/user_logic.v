@@ -245,7 +245,7 @@ input                                     bus2ip_mstwr_dst_dsc_n;
   reg      [31 : 0]                          min_x1, min_x2, min_x3, min_x4;
   reg      [31 : 0]                          min_y1, min_y2, min_y3, min_y4;
   reg      [31 : 0]                          min_sad1, min_sad2, min_sad3, min_sad4;
-  reg      [31 : 0]                          sad;
+  wire     [31 : 0]                          sad;
   wire                                       clear;
   
   reg      [1  : 0]                          run;
@@ -302,10 +302,10 @@ input                                     bus2ip_mstwr_dst_dsc_n;
           min_x1 <= 0;
           min_y1 <= 0;
         end
-      else if (run == 0 && count_tick == 7 && sad < min_sad1)
+      else if (run == 0 && count_tick >= 5 && sad < min_sad1)
         begin
           min_sad1 <= sad;
-          min_x1 <= group_col;
+          min_x1 <= group_col - 8 + count_tick;
           min_y1 <= group_row;
         end
       else
@@ -324,10 +324,10 @@ input                                     bus2ip_mstwr_dst_dsc_n;
           min_x2 <= 0;
           min_y2 <= 0;
         end
-      else if (run == 1 && count_tick == 7 && sad < min_sad2)
+      else if (run == 1 && count_tick >= 5 && sad < min_sad2)
         begin
           min_sad2 <= sad;
-          min_x2 <= group_col;
+          min_x2 <= group_col - 8 + count_tick;
           min_y2 <= group_row;
         end
       else
@@ -346,10 +346,10 @@ input                                     bus2ip_mstwr_dst_dsc_n;
           min_x3 <= 0;
           min_y3 <= 0;
         end
-      else if (run == 2 && count_tick == 7 && sad < min_sad3)
+      else if (run == 2 && count_tick >= 5 && sad < min_sad3)
         begin
           min_sad3 <= sad;
-          min_x3 <= group_col;
+          min_x3 <= group_col - 8 + count_tick;
           min_y3 <= group_row;
         end
       else
@@ -368,10 +368,10 @@ input                                     bus2ip_mstwr_dst_dsc_n;
           min_x4 <= 0;
           min_y4 <= 0;
         end
-      else if (run == 3 && count_tick == 7 && sad < min_sad4)
+      else if (run == 3 && count_tick >= 5 && sad < min_sad4)
         begin
           min_sad4 <= sad;
-          min_x4 <= group_col;
+          min_x4 <= group_col - 8 + count_tick;
           min_y4 <= group_row;
         end
       else
@@ -449,8 +449,6 @@ input                                     bus2ip_mstwr_dst_dsc_n;
           begin
             if (count_tick < 8)
               next_state = MATCHING_COMPUTE;
-            else if (group_col[1:0] != 2'b11)
-              next_state = MATCHING_SHIFT;
             else if (group_row_count != GROUP_HEIGHT)
               next_state = MATCHING_LOAD;
             else if (group_col < GROUP_WIDTH - 32-1)
@@ -460,10 +458,6 @@ input                                     bus2ip_mstwr_dst_dsc_n;
               next_state = IDLE;
             else
               next_state = LOAD_FACE1;
-          end
-        MATCHING_SHIFT:
-          begin
-            next_state = MATCHING_COMPUTE;
           end
         MATCHING_LOAD:
           begin
@@ -503,7 +497,7 @@ input                                     bus2ip_mstwr_dst_dsc_n;
   always @(posedge Bus2IP_Clk)
     begin
       if (!Bus2IP_Resetn || 
-          state != LOAD_GROUP && state != LOAD_NEXT_GROUP && state != MATCHING_COMPUTE && state != MATCHING_SHIFT && state != MATCHING_LOAD || 
+          state != LOAD_GROUP && state != LOAD_NEXT_GROUP && state != MATCHING_COMPUTE && state != MATCHING_LOAD || 
           state == MATCHING_COMPUTE && next_state == LOAD_GROUP)
         group_row_count <= 0;
       else if (state == LOAD_GROUP && next_state == LOAD_NEXT_GROUP || 
@@ -515,7 +509,7 @@ input                                     bus2ip_mstwr_dst_dsc_n;
   
   always @(posedge Bus2IP_Clk)
     begin
-      if (!Bus2IP_Resetn || next_state != MATCHING_COMPUTE && next_state != MATCHING_LOAD && next_state != MATCHING_SHIFT)
+      if (!Bus2IP_Resetn || next_state != MATCHING_COMPUTE && next_state != MATCHING_LOAD)
         group_row <= 0;
       else if (state == MATCHING_COMPUTE && next_state == MATCHING_LOAD)
         group_row <= group_row + 1;
@@ -525,9 +519,9 @@ input                                     bus2ip_mstwr_dst_dsc_n;
   
   always @(posedge Bus2IP_Clk)
     begin
-      if (!Bus2IP_Resetn || next_state != MATCHING_COMPUTE && next_state != MATCHING_LOAD && next_state != LOAD_GROUP && next_state != LOAD_NEXT_GROUP && next_state != MATCHING_SHIFT)
+      if (!Bus2IP_Resetn || next_state != MATCHING_COMPUTE && next_state != MATCHING_LOAD && next_state != LOAD_GROUP && next_state != LOAD_NEXT_GROUP)
         group_col <= 0;
-      else if (state == MATCHING_COMPUTE && (next_state == LOAD_GROUP || next_state == MATCHING_SHIFT))
+      else if (state == MATCHING_COMPUTE && (next_state == LOAD_GROUP || group_col[1:0] != 2'b11))
         group_col <= group_col + 1;
       else if (state == MATCHING_COMPUTE && next_state == MATCHING_LOAD)
         group_col <= group_col - 3;
@@ -588,7 +582,7 @@ input                                     bus2ip_mstwr_dst_dsc_n;
     begin
       if (!Bus2IP_Resetn)
         mem_trig <= 0;
-      else if (state != next_state && next_state != IDLE && next_state != MATCHING_COMPUTE && next_state != LOAD_NEXT_GROUP && next_state != MATCHING_SHIFT)
+      else if (state != next_state && next_state != IDLE && next_state != MATCHING_COMPUTE && next_state != LOAD_NEXT_GROUP)
         mem_trig <= 1;
 			else if (!mem_complete)
 				mem_trig <= 0;
@@ -663,7 +657,7 @@ input                                     bus2ip_mstwr_dst_dsc_n;
           group[255+32] <= mem_data;
           group_state <= 1;
         end
-      else if (state == MATCHING_SHIFT)
+      else if (state == MATCHING_COMPUTE && group_col[1:0] != 2'b11)
         begin
           for (pixel_index2 = 0; pixel_index2 < 255+32; pixel_index2 = pixel_index2 + 1)
             begin
@@ -715,10 +709,7 @@ input                                     bus2ip_mstwr_dst_dsc_n;
   wire       [16 : 0]                       part_sum8[3:0];
   reg        [17 : 0]                       part_sum9[1:0];
   
-  always @(posedge Bus2IP_Clk)
-    begin
-      sad <= part_sum9[0] + part_sum9[1];
-    end
+  assign sad = part_sum9[0] + part_sum9[1];
   
   // f_pixel
   genvar fpixel_index;
