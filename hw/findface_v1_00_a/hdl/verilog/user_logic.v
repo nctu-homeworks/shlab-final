@@ -1,6 +1,7 @@
 `uselib lib=unisims_ver
 `uselib lib=proc_common_v3_00_a
 `include "get_mem.v"
+`include "bram2p.v"
 
 module user_logic
 (
@@ -63,9 +64,10 @@ parameter  LOAD_FACE3 = 4'd3;
 parameter  LOAD_FACE4 = 4'd4;
 parameter  LOAD_GROUP = 4'd5;
 parameter  LOAD_NEXT_GROUP = 4'd6;
-parameter  MATCHING_COMPUTE = 4'd7;
-parameter  MATCHING_SHIFT = 4'd8;
-parameter  MATCHING_LOAD = 4'd9;
+parameter  BRAM_EXTRACT = 4'd7;
+parameter  MATCHING_COMPUTE = 4'd8;
+parameter  MATCHING_SHIFT = 4'd9;
+parameter  MATCHING_LOAD = 4'd10;
 
 parameter  FACE_SIZE = 1024;
 parameter  GROUP_WIDTH = 1920;
@@ -235,6 +237,7 @@ input                                     bus2ip_mstwr_dst_dsc_n;
   reg      [31 : 0]                          face3[255 : 0];
   reg      [31 : 0]                          face4[255 : 0];
 	*/
+  
   reg      [31 : 0]                          group[255+32 : 0];
   wire     [11 : 0]                          mem_count;
   wire     [31 : 0]                          mem_data;
@@ -246,25 +249,19 @@ input                                     bus2ip_mstwr_dst_dsc_n;
   reg      [31 : 0]                          min_y1, min_y2, min_y3, min_y4;
   reg      [31 : 0]                          min_sad1, min_sad2, min_sad3, min_sad4;
   wire     [31 : 0]                          sad;
-  wire                                       clear;
+  
+  wire     [31 : 0]                          bram_out[31:0];
+  wire                                       bram_we[31:0];
+  wire     [31 : 0]                          bram_addr[31:0];
   
   reg      [1  : 0]                          run;
   reg      [3  : 0]                          state, next_state;
   reg      [12 : 0]                          group_row, group_col, group_row_count;
+  reg      [10 : 0]                          group_col_count;
   reg      [3  : 0]                          count_tick;
-
-  reg                                        clk;
-  reg      [1  : 0]                          group_state;
-  always @(posedge Bus2IP_Clk)
-    begin
-      clk <= ~clk;
-    end
   
-  wire trig1;
-  assign trig1 = group_col >= 880 ? 1'b1 : 0;
-  
-	assign dbg_trig = {6'b0, trig1, slv_reg0[0]};
-	assign dbg_data = {1'b0, clk, mem_complete, mem_data_trig, state[3:0], mem_addr[7:0], group[0][7:0], face1[0][7:0]};
+	assign dbg_trig = 0;
+	assign dbg_data = 0;
   
   get_mem getmem(mem_addr, mem_length, mem_trig, mem_complete, mem_data, mem_data_trig, mem_count,
     Bus2IP_Clk,                     // Bus to IP clock
@@ -292,6 +289,38 @@ input                                     bus2ip_mstwr_dst_dsc_n;
     ip2bus_mstwr_eof_n,             // Ip to Bus master write end of frame
     bus2ip_mstwr_dst_rdy_n         // Bus to Ip master write dest. ready
   );
+  bram2p bram0 (Bus2IP_Clk, bram_we[0 ], 1'b1, bram_addr[0 ], mem_data, bram_out[0 ],
+                Bus2IP_Clk, bram_we[1 ], 1'b1, bram_addr[1 ], mem_data, bram_out[1 ]);
+  bram2p bram1 (Bus2IP_Clk, bram_we[2 ], 1'b1, bram_addr[2 ], mem_data, bram_out[2 ],
+                Bus2IP_Clk, bram_we[3 ], 1'b1, bram_addr[3 ], mem_data, bram_out[3 ]);
+  bram2p bram2 (Bus2IP_Clk, bram_we[4 ], 1'b1, bram_addr[4 ], mem_data, bram_out[4 ],
+                Bus2IP_Clk, bram_we[5 ], 1'b1, bram_addr[5 ], mem_data, bram_out[5 ]);
+  bram2p bram3 (Bus2IP_Clk, bram_we[6 ], 1'b1, bram_addr[6 ], mem_data, bram_out[6 ],
+                Bus2IP_Clk, bram_we[7 ], 1'b1, bram_addr[7 ], mem_data, bram_out[7 ]);
+  bram2p bram4 (Bus2IP_Clk, bram_we[8 ], 1'b1, bram_addr[8 ], mem_data, bram_out[8 ],
+                Bus2IP_Clk, bram_we[9 ], 1'b1, bram_addr[9 ], mem_data, bram_out[9 ]);
+  bram2p bram5 (Bus2IP_Clk, bram_we[10], 1'b1, bram_addr[10], mem_data, bram_out[10],
+                Bus2IP_Clk, bram_we[11], 1'b1, bram_addr[11], mem_data, bram_out[11]);
+  bram2p bram6 (Bus2IP_Clk, bram_we[12], 1'b1, bram_addr[12], mem_data, bram_out[12],
+                Bus2IP_Clk, bram_we[13], 1'b1, bram_addr[13], mem_data, bram_out[13]);
+  bram2p bram7 (Bus2IP_Clk, bram_we[14], 1'b1, bram_addr[14], mem_data, bram_out[14],
+                Bus2IP_Clk, bram_we[15], 1'b1, bram_addr[15], mem_data, bram_out[15]);
+  bram2p bram8 (Bus2IP_Clk, bram_we[16], 1'b1, bram_addr[16], mem_data, bram_out[16],
+                Bus2IP_Clk, bram_we[17], 1'b1, bram_addr[17], mem_data, bram_out[17]);
+  bram2p bram9 (Bus2IP_Clk, bram_we[18], 1'b1, bram_addr[18], mem_data, bram_out[18],
+                Bus2IP_Clk, bram_we[19], 1'b1, bram_addr[19], mem_data, bram_out[19]);
+  bram2p bram10(Bus2IP_Clk, bram_we[20], 1'b1, bram_addr[20], mem_data, bram_out[20],
+                Bus2IP_Clk, bram_we[21], 1'b1, bram_addr[21], mem_data, bram_out[21]);
+  bram2p bram11(Bus2IP_Clk, bram_we[22], 1'b1, bram_addr[22], mem_data, bram_out[22],
+                Bus2IP_Clk, bram_we[23], 1'b1, bram_addr[23], mem_data, bram_out[23]);
+  bram2p bram12(Bus2IP_Clk, bram_we[24], 1'b1, bram_addr[24], mem_data, bram_out[24],
+                Bus2IP_Clk, bram_we[25], 1'b1, bram_addr[25], mem_data, bram_out[25]);
+  bram2p bram13(Bus2IP_Clk, bram_we[26], 1'b1, bram_addr[26], mem_data, bram_out[26],
+                Bus2IP_Clk, bram_we[27], 1'b1, bram_addr[27], mem_data, bram_out[27]);
+  bram2p bram14(Bus2IP_Clk, bram_we[28], 1'b1, bram_addr[28], mem_data, bram_out[28],
+                Bus2IP_Clk, bram_we[29], 1'b1, bram_addr[29], mem_data, bram_out[29]);
+  bram2p bram15(Bus2IP_Clk, bram_we[30], 1'b1, bram_addr[30], mem_data, bram_out[30],
+                Bus2IP_Clk, bram_we[31], 1'b1, bram_addr[31], mem_data, bram_out[31]);
   
   // Remember min_sad
   always @(posedge Bus2IP_Clk)
@@ -302,10 +331,10 @@ input                                     bus2ip_mstwr_dst_dsc_n;
           min_x1 <= 0;
           min_y1 <= 0;
         end
-      else if (run == 0 && count_tick >= 5 && sad < min_sad1)
+      else if (run == 0 && group_col >= 4 && sad < min_sad1)
         begin
           min_sad1 <= sad;
-          min_x1 <= group_col - 8 + count_tick;
+          min_x1 <= group_col - 4;
           min_y1 <= group_row;
         end
       else
@@ -324,10 +353,10 @@ input                                     bus2ip_mstwr_dst_dsc_n;
           min_x2 <= 0;
           min_y2 <= 0;
         end
-      else if (run == 1 && count_tick >= 5 && sad < min_sad2)
+      else if (run == 1 && group_col >= 4 && sad < min_sad2)
         begin
           min_sad2 <= sad;
-          min_x2 <= group_col - 8 + count_tick;
+          min_x2 <= group_col - 4;
           min_y2 <= group_row;
         end
       else
@@ -346,10 +375,10 @@ input                                     bus2ip_mstwr_dst_dsc_n;
           min_x3 <= 0;
           min_y3 <= 0;
         end
-      else if (run == 2 && count_tick >= 5 && sad < min_sad3)
+      else if (run == 2 && group_col >= 4 && sad < min_sad3)
         begin
           min_sad3 <= sad;
-          min_x3 <= group_col - 8 + count_tick;
+          min_x3 <= group_col - 4;
           min_y3 <= group_row;
         end
       else
@@ -368,10 +397,10 @@ input                                     bus2ip_mstwr_dst_dsc_n;
           min_x4 <= 0;
           min_y4 <= 0;
         end
-      else if (run == 3 && count_tick >= 5 && sad < min_sad4)
+      else if (run == 3 && group_col >= 4 && sad < min_sad4)
         begin
           min_sad4 <= sad;
-          min_x4 <= group_col - 8 + count_tick;
+          min_x4 <= group_col - 4;
           min_y4 <= group_row;
         end
       else
@@ -441,28 +470,52 @@ input                                     bus2ip_mstwr_dst_dsc_n;
         LOAD_NEXT_GROUP:
           begin
             if (group_row_count >= 32)
-              next_state = MATCHING_COMPUTE;
+              next_state = BRAM_EXTRACT;
             else
               next_state = LOAD_GROUP;
           end
+        BRAM_EXTRACT:
+          begin
+            if (group_col_count > 8)
+              next_state = MATCHING_COMPUTE;
+            else
+              next_state = BRAM_EXTRACT;
+          end
         MATCHING_COMPUTE:
           begin
-            if (count_tick < 8)
+            if (group_col[1:0] != 2'b11 || group_col_count < GROUP_WIDTH/4)
               next_state = MATCHING_COMPUTE;
             else if (group_row_count != GROUP_HEIGHT)
               next_state = MATCHING_LOAD;
-            else if (group_col < GROUP_WIDTH - 32-1)
-              /* The last column is ignored, fix if have time */
-              next_state = LOAD_GROUP;
             else if (run == 3)
               next_state = IDLE;
             else
               next_state = LOAD_FACE1;
+            /*
+            if (count_tick < 8)
+              next_state = MATCHING_COMPUTE;
+            else if (group_col[1:0] != 2'b11)
+              next_state = MATCHING_SHIFT;
+            else if (group_col_count < GROUP_WIDTH/4)
+              next_state = BRAM_EXTRACT;
+            else if (group_row_count != GROUP_HEIGHT)
+              next_state = MATCHING_LOAD;
+            else if (run == 3)
+              next_state = IDLE;
+            else
+              next_state = LOAD_FACE1;
+            */
           end
+        /*
+        MATCHING_SHIFT:
+          begin
+            next_state = MATCHING_COMPUTE;
+          end
+        */
         MATCHING_LOAD:
           begin
             if (mem_complete && !mem_trig)
-              next_state = MATCHING_COMPUTE;
+              next_state = BRAM_EXTRACT;
             else
               next_state = MATCHING_LOAD;
           end
@@ -483,7 +536,8 @@ input                                     bus2ip_mstwr_dst_dsc_n;
       else
         run <= run;
     end
-    
+  
+  /*
   // count_tick control
   always @(posedge Bus2IP_Clk)
     begin
@@ -492,24 +546,35 @@ input                                     bus2ip_mstwr_dst_dsc_n;
       else
         count_tick <= count_tick + 1;
     end
+  */
   
   // Group row, col control
   always @(posedge Bus2IP_Clk)
     begin
       if (!Bus2IP_Resetn || 
-          state != LOAD_GROUP && state != LOAD_NEXT_GROUP && state != MATCHING_COMPUTE && state != MATCHING_LOAD || 
-          state == MATCHING_COMPUTE && next_state == LOAD_GROUP)
+          state != LOAD_GROUP && state != LOAD_NEXT_GROUP && state != MATCHING_COMPUTE && state != BRAM_EXTRACT /*&& state != MATCHING_SHIFT*/ && state != MATCHING_LOAD)
         group_row_count <= 0;
       else if (state == LOAD_GROUP && next_state == LOAD_NEXT_GROUP || 
-               state == MATCHING_LOAD && next_state == MATCHING_COMPUTE)
+               state == MATCHING_LOAD && next_state == BRAM_EXTRACT)
         group_row_count <= group_row_count + 1;
       else
         group_row_count <= group_row_count;
     end
+    
+  always @(posedge Bus2IP_Clk)
+    begin
+      if (!Bus2IP_Resetn || 
+          next_state != BRAM_EXTRACT && next_state != MATCHING_COMPUTE /*&& next_state != MATCHING_SHIFT*/)
+        group_col_count <= 0;
+      else if (next_state == BRAM_EXTRACT || group_col[1:0] == 2'b10)
+        group_col_count <= group_col_count + 1;
+      else
+        group_col_count <= group_col_count;
+    end
   
   always @(posedge Bus2IP_Clk)
     begin
-      if (!Bus2IP_Resetn || next_state != MATCHING_COMPUTE && next_state != MATCHING_LOAD)
+      if (!Bus2IP_Resetn || next_state != MATCHING_COMPUTE && next_state != MATCHING_LOAD && next_state != BRAM_EXTRACT /*&& next_state != MATCHING_SHIFT*/)
         group_row <= 0;
       else if (state == MATCHING_COMPUTE && next_state == MATCHING_LOAD)
         group_row <= group_row + 1;
@@ -519,12 +584,10 @@ input                                     bus2ip_mstwr_dst_dsc_n;
   
   always @(posedge Bus2IP_Clk)
     begin
-      if (!Bus2IP_Resetn || next_state != MATCHING_COMPUTE && next_state != MATCHING_LOAD && next_state != LOAD_GROUP && next_state != LOAD_NEXT_GROUP)
+      if (!Bus2IP_Resetn || next_state != MATCHING_COMPUTE /*&& next_state != BRAM_EXTRACT && next_state != MATCHING_SHIFT*/)
         group_col <= 0;
-      else if (state == MATCHING_COMPUTE && (next_state == LOAD_GROUP || group_col[1:0] != 2'b11))
+      else if (state == MATCHING_COMPUTE /*&& (next_state == MATCHING_SHIFT || next_state == BRAM_EXTRACT)*/)
         group_col <= group_col + 1;
-      else if (state == MATCHING_COMPUTE && next_state == MATCHING_LOAD)
-        group_col <= group_col - 3;
       else
         group_col <= group_col;
     end
@@ -565,7 +628,7 @@ input                                     bus2ip_mstwr_dst_dsc_n;
 	  			*/
         default:
           begin
-            mem_addr = slv_reg5 + group_col + group_row_count * GROUP_WIDTH;
+            mem_addr = slv_reg5 + group_row_count * GROUP_WIDTH;
           end
       endcase
 		end
@@ -573,7 +636,7 @@ input                                     bus2ip_mstwr_dst_dsc_n;
   always @(posedge Bus2IP_Clk)
     begin
       if (next_state == MATCHING_LOAD || next_state == LOAD_GROUP)
-        mem_length <= 36;
+        mem_length <= GROUP_WIDTH;
       else
         mem_length <= FACE_SIZE;
     end
@@ -582,15 +645,24 @@ input                                     bus2ip_mstwr_dst_dsc_n;
     begin
       if (!Bus2IP_Resetn)
         mem_trig <= 0;
-      else if (state != next_state && next_state != IDLE && next_state != MATCHING_COMPUTE && next_state != LOAD_NEXT_GROUP)
+      else if (state != next_state && next_state != IDLE && next_state != MATCHING_COMPUTE && next_state != LOAD_NEXT_GROUP && next_state != BRAM_EXTRACT /*&& next_state != MATCHING_SHIFT*/)
         mem_trig <= 1;
 			else if (!mem_complete)
 				mem_trig <= 0;
       else
         mem_trig <= mem_trig;
     end
+    
+  // BRAM Control (we, addr)
+  genvar bram_index1;
+  generate
+    for ( bram_index1 = 0; bram_index1 <= 31; bram_index1 = bram_index1+1 )
+	    begin: bg1
+        assign bram_we[bram_index1] = ((state == LOAD_GROUP || state == MATCHING_LOAD) && group_row_count[4:0] == bram_index1 && mem_data_trig) ? 1'b1 : 0;
+        assign bram_addr[bram_index1] = {22'd0, bram_index1 % 2, (bram_we[bram_index1] ? mem_count[8:0] : group_col_count[8:0])};
+      end
+  endgenerate
         
-  
   // Faces and group
   integer pixel_index;
   always @(posedge Bus2IP_Clk)
@@ -647,53 +719,94 @@ input                                     bus2ip_mstwr_dst_dsc_n;
     end
 	*/
     
-  integer pixel_index2;
+  integer pixel_index2, pixel_index3;
   always @(posedge Bus2IP_Clk)
     begin
-      if ((state == LOAD_GROUP || state == MATCHING_LOAD) && mem_data_trig)
-        begin
-          for (pixel_index2 = 0; pixel_index2 < 255+32; pixel_index2 = pixel_index2 + 1)
-            group[pixel_index2] <= group[pixel_index2+1];
-          group[255+32] <= mem_data;
-          group_state <= 1;
-        end
-      else if (state == MATCHING_COMPUTE && group_col[1:0] != 2'b11)
-        begin
-          for (pixel_index2 = 0; pixel_index2 < 255+32; pixel_index2 = pixel_index2 + 1)
+      if (state == BRAM_EXTRACT)
+        for (pixel_index2 = 0; pixel_index2 < 32; pixel_index2 = pixel_index2 + 1)
+          begin
+            group[pixel_index2*9] <= group[pixel_index2*9+1];
+            group[pixel_index2*9+1] <= group[pixel_index2*9+2];
+            group[pixel_index2*9+2] <= group[pixel_index2*9+3];
+            group[pixel_index2*9+3] <= group[pixel_index2*9+4];
+            group[pixel_index2*9+4] <= group[pixel_index2*9+5];
+            group[pixel_index2*9+5] <= group[pixel_index2*9+6];
+            group[pixel_index2*9+6] <= group[pixel_index2*9+7];
+            group[pixel_index2*9+7] <= group[pixel_index2*9+8];
+          end
+      else if (state == MATCHING_COMPUTE)
+        for (pixel_index2 = 0; pixel_index2 < 32; pixel_index2 = pixel_index2 + 1)
+          for (pixel_index3 = 0; pixel_index3 < 8; pixel_index3 = pixel_index3 + 1)
             begin
-              group[pixel_index2][7:0] <= group[pixel_index2][15:8];
-              group[pixel_index2][15:8] <= group[pixel_index2][23:16];
-              group[pixel_index2][23:16] <= group[pixel_index2][31:24];
-              group[pixel_index2][31:24] <= group[pixel_index2+1][7:0];
+              group[pixel_index2*9+pixel_index3][7:0] <= group[pixel_index2*9+pixel_index3][15:8];
+              group[pixel_index2*9+pixel_index3][15:8] <= group[pixel_index2*9+pixel_index3][23:16];
+              group[pixel_index2*9+pixel_index3][23:16] <= group[pixel_index2*9+pixel_index3][31:24];
+              group[pixel_index2*9+pixel_index3][31:24] <= group[pixel_index2*9+pixel_index3+1][7:0];
             end
-          group[255+32][7:0] <= group[255+32][15:8];
-          group[255+32][15:8] <= group[255+32][23:16];
-          group[255+32][23:16] <= group[255+32][31:24];
-          group[255+32][31:24] <= group[0][7:0];
-          group_state <= 2;
-        end
-      else if (state == MATCHING_COMPUTE && next_state == MATCHING_LOAD)
-        begin
-          for (pixel_index2 = 0; pixel_index2 < 255+32; pixel_index2 = pixel_index2 + 1)
-            begin
-              group[pixel_index2][31:24] <= group[pixel_index2][7:0];
-              group[pixel_index2+1][7:0] <= group[pixel_index2][15:8];
-              group[pixel_index2+1][15:8] <= group[pixel_index2][23:16];
-              group[pixel_index2+1][23:16] <= group[pixel_index2][31:24];
-            end
-          group[255+32][31:24] <= group[255+32][7:0];
-          group[0][7:0] <= group[255+32][15:8];
-          group[0][15:8] <= group[255+32][23:16];
-          group[0][23:16] <= group[255+32][31:24];
-          group_state <= 3;
-        end
-      else begin
-        for (pixel_index2 = 0; pixel_index2 < 256+32; pixel_index2 = pixel_index2 + 1)
-          group[pixel_index2] <= group[pixel_index2];
-        group_state <= 0; end
+      else
+        for (pixel_index2 = 0; pixel_index2 < 32; pixel_index2 = pixel_index2 + 1)
+          begin
+            group[pixel_index2*9]   <= group[pixel_index2*9]  ;
+            group[pixel_index2*9+1] <= group[pixel_index2*9+1];
+            group[pixel_index2*9+2] <= group[pixel_index2*9+2];
+            group[pixel_index2*9+3] <= group[pixel_index2*9+3];
+            group[pixel_index2*9+4] <= group[pixel_index2*9+4];
+            group[pixel_index2*9+5] <= group[pixel_index2*9+5];
+            group[pixel_index2*9+6] <= group[pixel_index2*9+6];
+            group[pixel_index2*9+7] <= group[pixel_index2*9+7];
+          end
     end
   
-  
+  always @(posedge Bus2IP_Clk)
+    begin
+      if (state == BRAM_EXTRACT || state == MATCHING_COMPUTE && group_col[1:0] == 2'b11)
+        for (pixel_index2 = 0; pixel_index2 < 32; pixel_index2 = pixel_index2 + 1)
+          case(group_row[4:0])
+            0 : begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 0 ) % 32]; end
+            1 : begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 1 ) % 32]; end
+            2 : begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 2 ) % 32]; end
+            3 : begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 3 ) % 32]; end
+            4 : begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 4 ) % 32]; end
+            5 : begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 5 ) % 32]; end
+            6 : begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 6 ) % 32]; end
+            7 : begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 7 ) % 32]; end
+            8 : begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 8 ) % 32]; end
+            9 : begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 9 ) % 32]; end
+            10: begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 10) % 32]; end
+            11: begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 11) % 32]; end
+            12: begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 12) % 32]; end
+            13: begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 13) % 32]; end
+            14: begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 14) % 32]; end
+            15: begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 15) % 32]; end
+            16: begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 16) % 32]; end
+            17: begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 17) % 32]; end
+            18: begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 18) % 32]; end
+            19: begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 19) % 32]; end
+            20: begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 20) % 32]; end
+            21: begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 21) % 32]; end
+            22: begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 22) % 32]; end
+            23: begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 23) % 32]; end
+            24: begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 24) % 32]; end
+            25: begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 25) % 32]; end
+            26: begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 26) % 32]; end
+            27: begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 27) % 32]; end
+            28: begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 28) % 32]; end
+            29: begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 29) % 32]; end
+            30: begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 30) % 32]; end
+            31: begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 31) % 32]; end
+          endcase
+      else if (state == MATCHING_COMPUTE)
+        for (pixel_index2 = 0; pixel_index2 < 32; pixel_index2 = pixel_index2 + 1)
+          begin
+            group[pixel_index2*9+8][7:0] <= group[pixel_index2*9+8][15:8];
+            group[pixel_index2*9+8][15:8] <= group[pixel_index2*9+8][23:16];
+            group[pixel_index2*9+8][23:16] <= group[pixel_index2*9+8][31:24];
+            group[pixel_index2*9+8][31:24] <= 0;
+          end
+      else
+        for (pixel_index2 = 0; pixel_index2 < 32; pixel_index2 = pixel_index2 + 1)
+          group[pixel_index2*9+8] <= group[pixel_index2*9+8];
+    end
   
   wire       [8 : 0]                        f_pixel[1023:0];
   wire       [8 : 0]                        g_pixel[1023:0];
