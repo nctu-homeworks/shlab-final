@@ -230,11 +230,6 @@ input                                     bus2ip_mstwr_dst_dsc_n;
 	wire     [31 : 0]                          dbg_data;
 
   reg      [31 : 0]                          face1[255 : 0];
-	/*
-  reg      [31 : 0]                          face2[255 : 0];
-  reg      [31 : 0]                          face3[255 : 0];
-  reg      [31 : 0]                          face4[255 : 0];
-	*/
   reg      [31 : 0]                          group[255+32 : 0];
   wire     [11 : 0]                          mem_count;
   wire     [31 : 0]                          mem_data;
@@ -246,25 +241,14 @@ input                                     bus2ip_mstwr_dst_dsc_n;
   reg      [31 : 0]                          min_y1, min_y2, min_y3, min_y4;
   reg      [31 : 0]                          min_sad1, min_sad2, min_sad3, min_sad4;
   wire     [31 : 0]                          sad;
-  wire                                       clear;
   
   reg      [1  : 0]                          run;
   reg      [3  : 0]                          state, next_state;
   reg      [12 : 0]                          group_row, group_col, group_row_count;
   reg      [3  : 0]                          count_tick;
-
-  reg                                        clk;
-  reg      [1  : 0]                          group_state;
-  always @(posedge Bus2IP_Clk)
-    begin
-      clk <= ~clk;
-    end
   
-  wire trig1;
-  assign trig1 = group_col >= 880 ? 1'b1 : 0;
-  
-	assign dbg_trig = {6'b0, trig1, slv_reg0[0]};
-	assign dbg_data = {1'b0, clk, mem_complete, mem_data_trig, state[3:0], mem_addr[7:0], group[0][7:0], face1[0][7:0]};
+	assign dbg_trig = 0;
+	assign dbg_data = 0;
   
   get_mem getmem(mem_addr, mem_length, mem_trig, mem_complete, mem_data, mem_data_trig, mem_count,
     Bus2IP_Clk,                     // Bus to IP clock
@@ -404,33 +388,10 @@ input                                     bus2ip_mstwr_dst_dsc_n;
         LOAD_FACE1:
           begin
             if (mem_complete && !mem_trig)
-              next_state = LOAD_GROUP; //LOAD_FACE2;
+              next_state = LOAD_GROUP;
             else
               next_state = LOAD_FACE1;
           end
-				/*
-        LOAD_FACE2:
-          begin
-            if (mem_complete)
-              next_state = LOAD_FACE3;
-            else
-              next_state = LOAD_FACE2;
-          end
-        LOAD_FACE3:
-          begin
-            if (mem_complete)
-              next_state = LOAD_FACE4;
-            else
-              next_state = LOAD_FACE3;
-          end
-        LOAD_FACE4:
-          begin
-            if (mem_complete)
-              next_state = LOAD_GROUP;
-            else
-              next_state = LOAD_FACE4;
-          end
-				*/
         LOAD_GROUP:
           begin
             if (mem_complete && !mem_trig)
@@ -549,20 +510,6 @@ input                                     bus2ip_mstwr_dst_dsc_n;
           begin
             mem_addr = slv_reg4;
           end
-	  			/*
-        LOAD_FACE2:
-          begin
-            mem_addr = slv_reg2;
-          end
-        LOAD_FACE3:
-          begin
-            mem_addr = slv_reg3;
-          end
-        LOAD_FACE4:
-          begin
-            mem_addr = slv_reg4;
-          end
-	  			*/
         default:
           begin
             mem_addr = slv_reg5 + group_col + group_row_count * GROUP_WIDTH;
@@ -606,47 +553,6 @@ input                                     bus2ip_mstwr_dst_dsc_n;
           face1[pixel_index] <= face1[pixel_index];
     end
     
-	/*
-  always @(posedge Bus2IP_Clk)
-    begin
-      if (state == LOAD_FACE2 && mem_data_trig)
-        begin
-          for (pixel_index = 0; pixel_index < 255; pixel_index = pixel_index + 1)
-            face2[pixel_index] <= face2[pixel_index+1];
-          face2[255] <= mem_data;
-        end
-      else
-        for (pixel_index = 0; pixel_index < 256; pixel_index = pixel_index + 1)
-          face2[pixel_index] <= face2[pixel_index];
-    end
-    
-  always @(posedge Bus2IP_Clk)
-    begin
-      if (state == LOAD_FACE3 && mem_data_trig)
-        begin
-          for (pixel_index = 0; pixel_index < 255; pixel_index = pixel_index + 1)
-            face3[pixel_index] <= face3[pixel_index+1];
-          face3[255] <= mem_data;
-        end
-      else
-        for (pixel_index = 0; pixel_index < 256; pixel_index = pixel_index + 1)
-          face3[pixel_index] <= face3[pixel_index];
-    end
-    
-  always @(posedge Bus2IP_Clk)
-    begin
-      if (state == LOAD_FACE4 && mem_data_trig)
-        begin
-          for (pixel_index = 0; pixel_index < 255; pixel_index = pixel_index + 1)
-            face4[pixel_index] <= face4[pixel_index+1];
-          face4[255] <= mem_data;
-        end
-      else
-        for (pixel_index = 0; pixel_index < 256; pixel_index = pixel_index + 1)
-          face4[pixel_index] <= face4[pixel_index];
-    end
-	*/
-    
   integer pixel_index2;
   always @(posedge Bus2IP_Clk)
     begin
@@ -655,7 +561,6 @@ input                                     bus2ip_mstwr_dst_dsc_n;
           for (pixel_index2 = 0; pixel_index2 < 255+32; pixel_index2 = pixel_index2 + 1)
             group[pixel_index2] <= group[pixel_index2+1];
           group[255+32] <= mem_data;
-          group_state <= 1;
         end
       else if (state == MATCHING_COMPUTE && group_col[1:0] != 2'b11)
         begin
@@ -670,7 +575,6 @@ input                                     bus2ip_mstwr_dst_dsc_n;
           group[255+32][15:8] <= group[255+32][23:16];
           group[255+32][23:16] <= group[255+32][31:24];
           group[255+32][31:24] <= group[0][7:0];
-          group_state <= 2;
         end
       else if (state == MATCHING_COMPUTE && next_state == MATCHING_LOAD)
         begin
@@ -685,12 +589,10 @@ input                                     bus2ip_mstwr_dst_dsc_n;
           group[0][7:0] <= group[255+32][15:8];
           group[0][15:8] <= group[255+32][23:16];
           group[0][23:16] <= group[255+32][31:24];
-          group_state <= 3;
         end
-      else begin
+      else
         for (pixel_index2 = 0; pixel_index2 < 256+32; pixel_index2 = pixel_index2 + 1)
           group[pixel_index2] <= group[pixel_index2];
-        group_state <= 0; end
     end
   
   
