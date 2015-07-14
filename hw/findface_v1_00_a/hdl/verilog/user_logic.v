@@ -238,7 +238,8 @@ input                                     bus2ip_mstwr_dst_dsc_n;
   reg      [31 : 0]                          face4[255 : 0];
 	*/
   
-  reg      [31 : 0]                          group[255+32 : 0];
+  reg      [31 : 0]                          group[255 : 0];
+  reg      [31 : 0]                          group_preload[31:0];
   wire     [11 : 0]                          mem_count;
   wire     [31 : 0]                          mem_data;
   reg      [31 : 0]                          mem_addr;
@@ -719,68 +720,68 @@ input                                     bus2ip_mstwr_dst_dsc_n;
     end
 	*/
     
-  integer pixel_index2, pixel_index3;
+  integer pixel_index2;
   always @(posedge Bus2IP_Clk)
     begin
       if (state == BRAM_EXTRACT)
         for (pixel_index2 = 0; pixel_index2 < 32; pixel_index2 = pixel_index2 + 1)
           begin
-            group[pixel_index2*9] <= group[pixel_index2*9+1];
-            group[pixel_index2*9+1] <= group[pixel_index2*9+2];
-            group[pixel_index2*9+2] <= group[pixel_index2*9+3];
-            group[pixel_index2*9+3] <= group[pixel_index2*9+4];
-            group[pixel_index2*9+4] <= group[pixel_index2*9+5];
-            group[pixel_index2*9+5] <= group[pixel_index2*9+6];
-            group[pixel_index2*9+6] <= group[pixel_index2*9+7];
-            group[pixel_index2*9+7] <= group[pixel_index2*9+8];
+            group[pixel_index2*8  ] <= group[pixel_index2*8+1];
+            group[pixel_index2*8+1] <= group[pixel_index2*8+2];
+            group[pixel_index2*8+2] <= group[pixel_index2*8+3];
+            group[pixel_index2*8+3] <= group[pixel_index2*8+4];
+            group[pixel_index2*8+4] <= group[pixel_index2*8+5];
+            group[pixel_index2*8+5] <= group[pixel_index2*8+6];
+            group[pixel_index2*8+6] <= group[pixel_index2*8+7];
+            group[pixel_index2*8+7] <= group_preload[pixel_index2];
           end
       else if (state == MATCHING_COMPUTE)
         for (pixel_index2 = 0; pixel_index2 < 32; pixel_index2 = pixel_index2 + 1)
           begin
-            group[pixel_index2*9+pixel_index3+0][7:0]   <= group[pixel_index2*9+0][15:8];
-            group[pixel_index2*9+pixel_index3+0][15:8]  <= group[pixel_index2*9+0][23:16];
-            group[pixel_index2*9+pixel_index3+0][23:16] <= group[pixel_index2*9+0][31:24];
-            group[pixel_index2*9+pixel_index3+0][31:24] <= group[pixel_index2*9+0+1][7:0];
-            group[pixel_index2*9+pixel_index3+1][7:0]   <= group[pixel_index2*9+1][15:8];
-            group[pixel_index2*9+pixel_index3+1][15:8]  <= group[pixel_index2*9+1][23:16];
-            group[pixel_index2*9+pixel_index3+1][23:16] <= group[pixel_index2*9+1][31:24];
-            group[pixel_index2*9+pixel_index3+1][31:24] <= group[pixel_index2*9+1+1][7:0];
-            group[pixel_index2*9+pixel_index3+2][7:0]   <= group[pixel_index2*9+2][15:8];
-            group[pixel_index2*9+pixel_index3+2][15:8]  <= group[pixel_index2*9+2][23:16];
-            group[pixel_index2*9+pixel_index3+2][23:16] <= group[pixel_index2*9+2][31:24];
-            group[pixel_index2*9+pixel_index3+2][31:24] <= group[pixel_index2*9+2+1][7:0];
-            group[pixel_index2*9+pixel_index3+3][7:0]   <= group[pixel_index2*9+3][15:8];
-            group[pixel_index2*9+pixel_index3+3][15:8]  <= group[pixel_index2*9+3][23:16];
-            group[pixel_index2*9+pixel_index3+3][23:16] <= group[pixel_index2*9+3][31:24];
-            group[pixel_index2*9+pixel_index3+3][31:24] <= group[pixel_index2*9+3+1][7:0];
-            group[pixel_index2*9+pixel_index3+4][7:0]   <= group[pixel_index2*9+4][15:8];
-            group[pixel_index2*9+pixel_index3+4][15:8]  <= group[pixel_index2*9+4][23:16];
-            group[pixel_index2*9+pixel_index3+4][23:16] <= group[pixel_index2*9+4][31:24];
-            group[pixel_index2*9+pixel_index3+4][31:24] <= group[pixel_index2*9+4+1][7:0];
-            group[pixel_index2*9+pixel_index3+5][7:0]   <= group[pixel_index2*9+5][15:8];
-            group[pixel_index2*9+pixel_index3+5][15:8]  <= group[pixel_index2*9+5][23:16];
-            group[pixel_index2*9+pixel_index3+5][23:16] <= group[pixel_index2*9+5][31:24];
-            group[pixel_index2*9+pixel_index3+5][31:24] <= group[pixel_index2*9+5+1][7:0];
-            group[pixel_index2*9+pixel_index3+6][7:0]   <= group[pixel_index2*9+6][15:8];
-            group[pixel_index2*9+pixel_index3+6][15:8]  <= group[pixel_index2*9+6][23:16];
-            group[pixel_index2*9+pixel_index3+6][23:16] <= group[pixel_index2*9+6][31:24];
-            group[pixel_index2*9+pixel_index3+6][31:24] <= group[pixel_index2*9+6+1][7:0];
-            group[pixel_index2*9+pixel_index3+7][7:0]   <= group[pixel_index2*9+7][15:8];
-            group[pixel_index2*9+pixel_index3+7][15:8]  <= group[pixel_index2*9+7][23:16];
-            group[pixel_index2*9+pixel_index3+7][23:16] <= group[pixel_index2*9+7][31:24];
-            group[pixel_index2*9+pixel_index3+7][31:24] <= group[pixel_index2*9+7+1][7:0];
+            group[pixel_index2*8+0][7:0]   <= group[pixel_index2*8+0][15:8];
+            group[pixel_index2*8+0][15:8]  <= group[pixel_index2*8+0][23:16];
+            group[pixel_index2*8+0][23:16] <= group[pixel_index2*8+0][31:24];
+            group[pixel_index2*8+0][31:24] <= group[pixel_index2*8+0+1][7:0];
+            group[pixel_index2*8+1][7:0]   <= group[pixel_index2*8+1][15:8];
+            group[pixel_index2*8+1][15:8]  <= group[pixel_index2*8+1][23:16];
+            group[pixel_index2*8+1][23:16] <= group[pixel_index2*8+1][31:24];
+            group[pixel_index2*8+1][31:24] <= group[pixel_index2*8+1+1][7:0];
+            group[pixel_index2*8+2][7:0]   <= group[pixel_index2*8+2][15:8];
+            group[pixel_index2*8+2][15:8]  <= group[pixel_index2*8+2][23:16];
+            group[pixel_index2*8+2][23:16] <= group[pixel_index2*8+2][31:24];
+            group[pixel_index2*8+2][31:24] <= group[pixel_index2*8+2+1][7:0];
+            group[pixel_index2*8+3][7:0]   <= group[pixel_index2*8+3][15:8];
+            group[pixel_index2*8+3][15:8]  <= group[pixel_index2*8+3][23:16];
+            group[pixel_index2*8+3][23:16] <= group[pixel_index2*8+3][31:24];
+            group[pixel_index2*8+3][31:24] <= group[pixel_index2*8+3+1][7:0];
+            group[pixel_index2*8+4][7:0]   <= group[pixel_index2*8+4][15:8];
+            group[pixel_index2*8+4][15:8]  <= group[pixel_index2*8+4][23:16];
+            group[pixel_index2*8+4][23:16] <= group[pixel_index2*8+4][31:24];
+            group[pixel_index2*8+4][31:24] <= group[pixel_index2*8+4+1][7:0];
+            group[pixel_index2*8+5][7:0]   <= group[pixel_index2*8+5][15:8];
+            group[pixel_index2*8+5][15:8]  <= group[pixel_index2*8+5][23:16];
+            group[pixel_index2*8+5][23:16] <= group[pixel_index2*8+5][31:24];
+            group[pixel_index2*8+5][31:24] <= group[pixel_index2*8+5+1][7:0];
+            group[pixel_index2*8+6][7:0]   <= group[pixel_index2*8+6][15:8];
+            group[pixel_index2*8+6][15:8]  <= group[pixel_index2*8+6][23:16];
+            group[pixel_index2*8+6][23:16] <= group[pixel_index2*8+6][31:24];
+            group[pixel_index2*8+6][31:24] <= group[pixel_index2*8+6+1][7:0];
+            group[pixel_index2*8+7][7:0]   <= group[pixel_index2*8+7][15:8];
+            group[pixel_index2*8+7][15:8]  <= group[pixel_index2*8+7][23:16];
+            group[pixel_index2*8+7][23:16] <= group[pixel_index2*8+7][31:24];
+            group[pixel_index2*8+7][31:24] <= group_preload[pixel_index2][7:0];
           end
       else
         for (pixel_index2 = 0; pixel_index2 < 32; pixel_index2 = pixel_index2 + 1)
           begin
-            group[pixel_index2*9]   <= group[pixel_index2*9]  ;
-            group[pixel_index2*9+1] <= group[pixel_index2*9+1];
-            group[pixel_index2*9+2] <= group[pixel_index2*9+2];
-            group[pixel_index2*9+3] <= group[pixel_index2*9+3];
-            group[pixel_index2*9+4] <= group[pixel_index2*9+4];
-            group[pixel_index2*9+5] <= group[pixel_index2*9+5];
-            group[pixel_index2*9+6] <= group[pixel_index2*9+6];
-            group[pixel_index2*9+7] <= group[pixel_index2*9+7];
+            group[pixel_index2*8]   <= group[pixel_index2*8]  ;
+            group[pixel_index2*8+1] <= group[pixel_index2*8+1];
+            group[pixel_index2*8+2] <= group[pixel_index2*8+2];
+            group[pixel_index2*8+3] <= group[pixel_index2*8+3];
+            group[pixel_index2*8+4] <= group[pixel_index2*8+4];
+            group[pixel_index2*8+5] <= group[pixel_index2*8+5];
+            group[pixel_index2*8+6] <= group[pixel_index2*8+6];
+            group[pixel_index2*8+7] <= group[pixel_index2*8+7];
           end
     end
   
@@ -789,50 +790,50 @@ input                                     bus2ip_mstwr_dst_dsc_n;
       if (state == BRAM_EXTRACT || state == MATCHING_COMPUTE && group_col[1:0] == 2'b11)
         for (pixel_index2 = 0; pixel_index2 < 32; pixel_index2 = pixel_index2 + 1)
           case(group_row[4:0])
-            0 : begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 0 ) % 32]; end
-            1 : begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 1 ) % 32]; end
-            2 : begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 2 ) % 32]; end
-            3 : begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 3 ) % 32]; end
-            4 : begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 4 ) % 32]; end
-            5 : begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 5 ) % 32]; end
-            6 : begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 6 ) % 32]; end
-            7 : begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 7 ) % 32]; end
-            8 : begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 8 ) % 32]; end
-            9 : begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 9 ) % 32]; end
-            10: begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 10) % 32]; end
-            11: begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 11) % 32]; end
-            12: begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 12) % 32]; end
-            13: begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 13) % 32]; end
-            14: begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 14) % 32]; end
-            15: begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 15) % 32]; end
-            16: begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 16) % 32]; end
-            17: begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 17) % 32]; end
-            18: begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 18) % 32]; end
-            19: begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 19) % 32]; end
-            20: begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 20) % 32]; end
-            21: begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 21) % 32]; end
-            22: begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 22) % 32]; end
-            23: begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 23) % 32]; end
-            24: begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 24) % 32]; end
-            25: begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 25) % 32]; end
-            26: begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 26) % 32]; end
-            27: begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 27) % 32]; end
-            28: begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 28) % 32]; end
-            29: begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 29) % 32]; end
-            30: begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 30) % 32]; end
-            31: begin group[pixel_index2*9+8] <= bram_out[(pixel_index2 + 31) % 32]; end
+            0 : begin group_preload[pixel_index2] <= bram_out[(pixel_index2 + 0 ) % 32]; end
+            1 : begin group_preload[pixel_index2] <= bram_out[(pixel_index2 + 1 ) % 32]; end
+            2 : begin group_preload[pixel_index2] <= bram_out[(pixel_index2 + 2 ) % 32]; end
+            3 : begin group_preload[pixel_index2] <= bram_out[(pixel_index2 + 3 ) % 32]; end
+            4 : begin group_preload[pixel_index2] <= bram_out[(pixel_index2 + 4 ) % 32]; end
+            5 : begin group_preload[pixel_index2] <= bram_out[(pixel_index2 + 5 ) % 32]; end
+            6 : begin group_preload[pixel_index2] <= bram_out[(pixel_index2 + 6 ) % 32]; end
+            7 : begin group_preload[pixel_index2] <= bram_out[(pixel_index2 + 7 ) % 32]; end
+            8 : begin group_preload[pixel_index2] <= bram_out[(pixel_index2 + 8 ) % 32]; end
+            9 : begin group_preload[pixel_index2] <= bram_out[(pixel_index2 + 9 ) % 32]; end
+            10: begin group_preload[pixel_index2] <= bram_out[(pixel_index2 + 10) % 32]; end
+            11: begin group_preload[pixel_index2] <= bram_out[(pixel_index2 + 11) % 32]; end
+            12: begin group_preload[pixel_index2] <= bram_out[(pixel_index2 + 12) % 32]; end
+            13: begin group_preload[pixel_index2] <= bram_out[(pixel_index2 + 13) % 32]; end
+            14: begin group_preload[pixel_index2] <= bram_out[(pixel_index2 + 14) % 32]; end
+            15: begin group_preload[pixel_index2] <= bram_out[(pixel_index2 + 15) % 32]; end
+            16: begin group_preload[pixel_index2] <= bram_out[(pixel_index2 + 16) % 32]; end
+            17: begin group_preload[pixel_index2] <= bram_out[(pixel_index2 + 17) % 32]; end
+            18: begin group_preload[pixel_index2] <= bram_out[(pixel_index2 + 18) % 32]; end
+            19: begin group_preload[pixel_index2] <= bram_out[(pixel_index2 + 19) % 32]; end
+            20: begin group_preload[pixel_index2] <= bram_out[(pixel_index2 + 20) % 32]; end
+            21: begin group_preload[pixel_index2] <= bram_out[(pixel_index2 + 21) % 32]; end
+            22: begin group_preload[pixel_index2] <= bram_out[(pixel_index2 + 22) % 32]; end
+            23: begin group_preload[pixel_index2] <= bram_out[(pixel_index2 + 23) % 32]; end
+            24: begin group_preload[pixel_index2] <= bram_out[(pixel_index2 + 24) % 32]; end
+            25: begin group_preload[pixel_index2] <= bram_out[(pixel_index2 + 25) % 32]; end
+            26: begin group_preload[pixel_index2] <= bram_out[(pixel_index2 + 26) % 32]; end
+            27: begin group_preload[pixel_index2] <= bram_out[(pixel_index2 + 27) % 32]; end
+            28: begin group_preload[pixel_index2] <= bram_out[(pixel_index2 + 28) % 32]; end
+            29: begin group_preload[pixel_index2] <= bram_out[(pixel_index2 + 29) % 32]; end
+            30: begin group_preload[pixel_index2] <= bram_out[(pixel_index2 + 30) % 32]; end
+            31: begin group_preload[pixel_index2] <= bram_out[(pixel_index2 + 31) % 32]; end
           endcase
       else if (state == MATCHING_COMPUTE)
         for (pixel_index2 = 0; pixel_index2 < 32; pixel_index2 = pixel_index2 + 1)
           begin
-            group[pixel_index2*9+8][7:0] <= group[pixel_index2*9+8][15:8];
-            group[pixel_index2*9+8][15:8] <= group[pixel_index2*9+8][23:16];
-            group[pixel_index2*9+8][23:16] <= group[pixel_index2*9+8][31:24];
-            group[pixel_index2*9+8][31:24] <= 0;
+            group_preload[pixel_index2][7:0]   <= group_preload[pixel_index2][15:8];
+            group_preload[pixel_index2][15:8]  <= group_preload[pixel_index2][23:16];
+            group_preload[pixel_index2][23:16] <= group_preload[pixel_index2][31:24];
+            group_preload[pixel_index2][31:24] <= 0;
           end
       else
         for (pixel_index2 = 0; pixel_index2 < 32; pixel_index2 = pixel_index2 + 1)
-          group[pixel_index2*9+8] <= group[pixel_index2*9+8];
+          group_preload[pixel_index2] <= group_preload[pixel_index2];
     end
   
   wire       [8 : 0]                        f_pixel[1023:0];
@@ -866,40 +867,12 @@ input                                     bus2ip_mstwr_dst_dsc_n;
   // g_pixel
   genvar gpixel_index;
   generate
-    for ( gpixel_index = 0; gpixel_index <= 31; gpixel_index = gpixel_index+1 )
+    for ( gpixel_index = 0; gpixel_index <= 255; gpixel_index = gpixel_index+1 )
 	    begin: g01
-        assign g_pixel[{gpixel_index*8, 2'b00}] = {1'b0, group[gpixel_index*9][31:24]};
-        assign g_pixel[{gpixel_index*8, 2'b01}] = {1'b0, group[gpixel_index*9][23:16]};
-        assign g_pixel[{gpixel_index*8, 2'b10}] = {1'b0, group[gpixel_index*9][15:8]};
-        assign g_pixel[{gpixel_index*8, 2'b11}] = {1'b0, group[gpixel_index*9][7:0]};
-        assign g_pixel[{gpixel_index*8+1, 2'b00}] = {1'b0, group[gpixel_index*9+1][31:24]};
-        assign g_pixel[{gpixel_index*8+1, 2'b01}] = {1'b0, group[gpixel_index*9+1][23:16]};
-        assign g_pixel[{gpixel_index*8+1, 2'b10}] = {1'b0, group[gpixel_index*9+1][15:8]};
-        assign g_pixel[{gpixel_index*8+1, 2'b11}] = {1'b0, group[gpixel_index*9+1][7:0]};
-        assign g_pixel[{gpixel_index*8+2, 2'b00}] = {1'b0, group[gpixel_index*9+2][31:24]};
-        assign g_pixel[{gpixel_index*8+2, 2'b01}] = {1'b0, group[gpixel_index*9+2][23:16]};
-        assign g_pixel[{gpixel_index*8+2, 2'b10}] = {1'b0, group[gpixel_index*9+2][15:8]};
-        assign g_pixel[{gpixel_index*8+2, 2'b11}] = {1'b0, group[gpixel_index*9+2][7:0]};
-        assign g_pixel[{gpixel_index*8+3, 2'b00}] = {1'b0, group[gpixel_index*9+3][31:24]};
-        assign g_pixel[{gpixel_index*8+3, 2'b01}] = {1'b0, group[gpixel_index*9+3][23:16]};
-        assign g_pixel[{gpixel_index*8+3, 2'b10}] = {1'b0, group[gpixel_index*9+3][15:8]};
-        assign g_pixel[{gpixel_index*8+3, 2'b11}] = {1'b0, group[gpixel_index*9+3][7:0]};
-        assign g_pixel[{gpixel_index*8+4, 2'b00}] = {1'b0, group[gpixel_index*9+4][31:24]};
-        assign g_pixel[{gpixel_index*8+4, 2'b01}] = {1'b0, group[gpixel_index*9+4][23:16]};
-        assign g_pixel[{gpixel_index*8+4, 2'b10}] = {1'b0, group[gpixel_index*9+4][15:8]};
-        assign g_pixel[{gpixel_index*8+4, 2'b11}] = {1'b0, group[gpixel_index*9+4][7:0]};
-        assign g_pixel[{gpixel_index*8+5, 2'b00}] = {1'b0, group[gpixel_index*9+5][31:24]};
-        assign g_pixel[{gpixel_index*8+5, 2'b01}] = {1'b0, group[gpixel_index*9+5][23:16]};
-        assign g_pixel[{gpixel_index*8+5, 2'b10}] = {1'b0, group[gpixel_index*9+5][15:8]};
-        assign g_pixel[{gpixel_index*8+5, 2'b11}] = {1'b0, group[gpixel_index*9+5][7:0]};
-        assign g_pixel[{gpixel_index*8+6, 2'b00}] = {1'b0, group[gpixel_index*9+6][31:24]};
-        assign g_pixel[{gpixel_index*8+6, 2'b01}] = {1'b0, group[gpixel_index*9+6][23:16]};
-        assign g_pixel[{gpixel_index*8+6, 2'b10}] = {1'b0, group[gpixel_index*9+6][15:8]};
-        assign g_pixel[{gpixel_index*8+6, 2'b11}] = {1'b0, group[gpixel_index*9+6][7:0]};
-        assign g_pixel[{gpixel_index*8+7, 2'b00}] = {1'b0, group[gpixel_index*9+7][31:24]};
-        assign g_pixel[{gpixel_index*8+7, 2'b01}] = {1'b0, group[gpixel_index*9+7][23:16]};
-        assign g_pixel[{gpixel_index*8+7, 2'b10}] = {1'b0, group[gpixel_index*9+7][15:8]};
-        assign g_pixel[{gpixel_index*8+7, 2'b11}] = {1'b0, group[gpixel_index*9+7][7:0]};
+        assign g_pixel[{gpixel_index  , 2'b00}] = {1'b0, group[gpixel_index][31:24]};
+        assign g_pixel[{gpixel_index  , 2'b01}] = {1'b0, group[gpixel_index][23:16]};
+        assign g_pixel[{gpixel_index  , 2'b10}] = {1'b0, group[gpixel_index][15:8]};
+        assign g_pixel[{gpixel_index  , 2'b11}] = {1'b0, group[gpixel_index][7:0]};
 		end
   endgenerate
   
