@@ -63,8 +63,6 @@ XScuGic xInterruptController;
 void  led_ctrl(void *pvParameters);
 void  findface(void *pvParameters);
 void  median3x3(uint8 *image, int width, int height);
-int32 compute_sad(uint8 *im1, int w1, uint8 *im2, int w2, int h2, int row, int col);
-int32 match(CImage *group, CImage *face, int *posx, int *posy);
 
 volatile uint32 *hw_trig = (uint32 *) (XPAR_FINDFACE_0_BASEADDR);
 volatile uint32 *hw_face1_addr = (uint32 *) (XPAR_FINDFACE_0_BASEADDR + 4);
@@ -147,9 +145,7 @@ void findface(void *pvParameters)
     /* perform face-matching */
     Xil_DCacheDisable();
     xil_printf("3. Face-matching, ");
-    //xil_printf("SAD: %ld\n\r\n\r", compute_sad(group.pix, group.width,
-    //                          face.pix, face.width, face.height,
-    //                          1, 4));
+
     counter = xTaskGetTickCount();
     *hw_face1_addr = (uint32) face1.pix;
     *hw_face2_addr = (uint32) face2.pix;
@@ -158,13 +154,12 @@ void findface(void *pvParameters)
     *hw_group_addr = (uint32) group.pix;
     *hw_trig = 1;
     while (*hw_trig);
-    //cost = match(&group, &face, &posx, &posy);
-    xil_printf("done in %ld msec.\n\r", (xTaskGetTickCount() - counter)*MSEC_PER_TICK);
-    //xil_printf("** Found the face at (%d, %d) with cost %ld\n\r\n\r", posx, posy, cost);
-    xil_printf("** Found the face1 at (%d, %d) with cost %ld\n\r", *hw_min_x1, *hw_min_y1, *hw_min_sad1);
-    xil_printf("** Found the face2 at (%d, %d) with cost %ld\n\r", *hw_min_x2, *hw_min_y2, *hw_min_sad2);
-    xil_printf("** Found the face3 at (%d, %d) with cost %ld\n\r", *hw_min_x3, *hw_min_y3, *hw_min_sad3);
-    xil_printf("** Found the face4 at (%d, %d) with cost %ld\n\r\n\r", *hw_min_x4, *hw_min_y4, *hw_min_sad4);
+
+    xil_printf("\e[33;45mdone in \e[1m%ld\e[0m\e[33;45m msec.\e[m\n\r\n\r", (xTaskGetTickCount() - counter)*MSEC_PER_TICK);
+    xil_printf("\e[32m** Found the face1 at (%d, %d) with cost %ld\e[0m\n\r", *hw_min_x1, *hw_min_y1, *hw_min_sad1);
+    xil_printf("\e[32m** Found the face2 at (%d, %d) with cost %ld\e[0m\n\r", *hw_min_x2, *hw_min_y2, *hw_min_sad2);
+    xil_printf("\e[32m** Found the face3 at (%d, %d) with cost %ld\e[0m\n\r", *hw_min_x3, *hw_min_y3, *hw_min_sad3);
+    xil_printf("\e[32m** Found the face4 at (%d, %d) with cost %ld\e[0m\n\r\n\r", *hw_min_x4, *hw_min_y4, *hw_min_sad4);
 
     /* set app_done flag */
     *pDone = 1;
@@ -232,49 +227,6 @@ void median3x3(uint8 *image, int width, int height)
             *ptr = pix_array[4];
         }
     }
-}
-
-int32 compute_sad(uint8 *image1, int w1, uint8 *image2, int w2, int h2,
-                  int row, int col)
-{
-    int  x, y;
-    int32 sad = 0;
-
-    /* Note: the following implementation is intentionally inefficient! */
-    for (y = 0; y < h2; y++) 
-    {
-        for (x = 0; x < w2; x++)
-        {
-            /* compute the sum of absolute difference */
-            sad += abs(image2[y*w2+x] - image1[(row+y)*w1+(col+x)]);
-        }
-    }
-    return sad;
-}
-
-int32 match(CImage *group, CImage *face, int *posx, int *posy)
-{
-    int  row, col;
-    int32  sad, min_sad;
-
-    min_sad = 256*face->width*face->height;
-    for (row = 0; row < group->height-face->height; row++)
-    {
-        for (col = 0; col < group->width-face->width; col++)
-        {
-            /* trying to compute the matching cost at (col, row) */
-            sad = compute_sad(group->pix, group->width,
-                              face->pix, face->width, face->height,
-                              row, col);
-            /* if the matching cost is minimal, record it */
-            if (sad <= min_sad)
-            {
-                min_sad = sad;
-                *posx = col, *posy = row;
-            }
-        }
-    }
-    return min_sad;
 }
 
 /* ----------------------------------------------------------------- */
